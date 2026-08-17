@@ -136,7 +136,7 @@ export async function fetchTopScores(mode, limit = 10) {
   const cfg = getFirebaseConfig();
   if (!isConfigured()) return [];
   const token = await getToken();
-  const res = await fetch(`${firestoreRoot(cfg.projectId)}/scores:runQuery`, {
+  const res = await fetch(`${firestoreRoot(cfg.projectId)}:runQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
@@ -149,8 +149,7 @@ export async function fetchTopScores(mode, limit = 10) {
             value: { stringValue: mode },
           },
         },
-        orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }],
-        limit,
+        limit: 100,
       },
     }),
   });
@@ -168,5 +167,6 @@ export async function fetchTopScores(mode, limit = 10) {
       at: f.at?.timestampValue || '',
     });
   }
-  return rows;
+  rows.sort((a, b) => b.score - a.score);
+  return rows.slice(0, limit);
 }

@@ -98,7 +98,8 @@ test('fetchTopScores parses runQuery results in order', async () => {
   assert.ok(String(query[0]).includes('runQuery'));
   const body = JSON.parse(query[1].body);
   assert.equal(body.structuredQuery.where.fieldFilter.value.stringValue, 'classic');
-  assert.equal(body.structuredQuery.limit, 10);
+  assert.equal(body.structuredQuery.limit, 100);
+  assert.equal(body.structuredQuery.orderBy, undefined, 'sorting happens client-side (no composite index needed)');
 });
 
 test('top scores also work without any config (offline, empty list)', async () => {
