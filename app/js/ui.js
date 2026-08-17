@@ -156,24 +156,29 @@ export class BoardView {
   _setFont(el, value) {
     const digits = String(value).length;
     const divisor = digits <= 2 ? 3 : digits === 3 ? 3.05 : digits === 4 ? 3.45 : digits === 5 ? 3.9 : 4.4;
-    el.style.fontSize = `${Math.max(12, this.size / divisor).toFixed(1)}px`;
+    el._inner.style.fontSize = `${Math.max(12, this.size / divisor).toFixed(1)}px`;
   }
 
   _createTile(value, idx, spawn = false) {
     const el = document.createElement('div');
     el.className = 'tile';
+    const inner = document.createElement('div');
+    inner.className = 'tile-inner';
+    el._inner = inner;
     el.style.width = `${this.size}px`;
     el.style.height = `${this.size}px`;
     el.style.transform = this._transform(idx);
     this._styleTile(el, value);
-    if (spawn) el.classList.add('tile-spawn');
+    if (spawn) inner.classList.add('tile-spawn');
+    el.appendChild(inner);
     return el;
   }
 
   _styleTile(el, value) {
-    el.textContent = value;
-    el.style.backgroundColor = this._tileColor(value);
-    el.style.color = this._tileTextColor(value);
+    const inner = el._inner;
+    inner.textContent = value;
+    inner.style.backgroundColor = this._tileColor(value);
+    inner.style.color = this._tileTextColor(value);
     this._setFont(el, value);
   }
 
@@ -202,10 +207,11 @@ export class BoardView {
           survivor.el.style.transform = this._transform(p.to);
           survivor.value = p.value;
           this._styleTile(survivor.el, p.value);
-          survivor.el.classList.remove('tile-spawn');
-          survivor.el.classList.remove('tile-merge');
-          void survivor.el.offsetWidth; // restart CSS animation
-          survivor.el.classList.add('tile-merge');
+          const inner = survivor.el._inner;
+          inner.classList.remove('tile-spawn');
+          inner.classList.remove('tile-merge');
+          void inner.offsetWidth; // restart CSS animation
+          inner.classList.add('tile-merge');
           this.tiles.delete(p.survivor);
           this.tiles.set(p.to, survivor);
         }

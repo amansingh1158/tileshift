@@ -84,6 +84,37 @@ test('ui: theme palette covers 2..2048 and high tiles', () => {
   }
 });
 
+test('ui: tiles are positioned at their own cell, not the top-left corner', () => {
+  view.setSize(4, 4);
+  const game = new Game({ seed: 2 });
+  game.board.cells = [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0];
+  view.render(game, { spawnAll: true });
+  const t1 = view.tiles.get(1);
+  const t2 = view.tiles.get(10);
+  assert.ok(t1.el.style.transform.startsWith('translate('));
+  assert.notEqual(t1.el.style.transform, 'translate(0px, 0px)', 'cell 1 must not sit at the corner');
+  assert.notEqual(t2.el.style.transform, 'translate(0px, 0px)', 'cell 10 must not sit at the corner');
+  // Spawn scale animation must live on the INNER element so it never
+  // overrides the outer translate (this was the corner-jump bug).
+  const inner = t1.el.querySelector('.tile-inner');
+  assert.ok(inner, 'tile has inner wrapper');
+  assert.ok(inner.classList.contains('tile-spawn'));
+  assert.ok(!t1.el.classList.contains('tile-spawn'));
+});
+
+test('ui: merge pop animation is applied to the inner element', () => {
+  view.setSize(4, 4);
+  const game = new Game({ seed: 1 });
+  game.board.cells = [2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  view.render(game);
+  game.attemptMove('left');
+  view.applyMove(game, game.lastSpawnIndex);
+  const survivor = view.tiles.get(0);
+  assert.ok(survivor.el._inner.classList.contains('tile-merge'), 'pop animation on inner');
+  assert.ok(!survivor.el.classList.contains('tile-merge'), 'outer keeps clean translate');
+  assert.ok(survivor.el.style.transform.startsWith('translate('), 'outer still translated');
+});
+
 test('ui: render with spawnAll adds spawn animation class', () => {
   view.setSize(2, 2);
   const game = new Game({ seed: 2 });
