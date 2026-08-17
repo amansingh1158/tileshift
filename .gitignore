@@ -13,6 +13,7 @@ android/keystore.properties
 # Local environment
 .env
 *.local
+google-services.json
 
 # OS / editor
 .DS_Store
