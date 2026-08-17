@@ -1,16 +1,17 @@
-import { test, before } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
-const html = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
+const landingHtml = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
+const playHtml = readFileSync(new URL('../app/play.html', import.meta.url), 'utf8');
 
-let dom;
-let window;
+const doms = [];
 
-before(async () => {
-  dom = new JSDOM(html, { url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true });
-  window = dom.window;
+function bootPage(html, url) {
+  const dom = new JSDOM(html, { url, runScripts: 'outside-only', pretendToBeVisual: true });
+  doms.push(dom);
+  const window = dom.window;
   global.window = window;
   global.document = window.document;
   global.ResizeObserver = class {
@@ -19,59 +20,108 @@ before(async () => {
     disconnect() {}
   };
   global.localStorage = window.localStorage;
-  await import('../app/js/main.js');
+  return dom;
+}
+
+async function bootPlay(mode, tag) {
+  const dom = bootPage(playHtml, `http://localhost/play.html?mode=${mode}`);
+  await import(`../app/js/main.js?${tag}`);
   await new Promise((r) => setTimeout(r, 20));
+  return dom;
+}
+
+after(() => {
+  for (const dom of doms) {
+    try {
+      dom.window.close();
+    } catch (e) {
+      // ignore
+    }
+  }
 });
 
-test('boot: page renders a board with tiles', () => {
+test('landing: shows only the four mode menus', () => {
+  const dom = bootPage(landingHtml, 'http://localhost/');
+  const cards = dom.window.document.querySelectorAll('.mode-card');
+  assert.equal(cards.length, 4, 'exactly four mode cards');
+
+  const names = [...cards].map((c) => c.querySelector('.mode-name').textContent);
+  assert.deepEqual(names, ['Classic', 'Time', 'Moves', 'Daily']);
+
+  const links = [...cards].map((c) => c.getAttribute('href'));
+  assert.deepEqual(links, [
+    'play.html?mode=classic',
+    'play.html?mode=time',
+    'play.html?mode=moves',
+    'play.html?mode=daily',
+  ]);
+
+  assert.equal(dom.window.document.getElementById('board'), null, 'no board on landing page');
+  assert.equal(dom.window.document.querySelector('.mode-tabs'), null, 'no in-game tabs');
+});
+
+test('play: page renders a board with tiles (classic)', async () => {
+  await bootPlay('classic', 't-classic');
   const board = document.getElementById('board');
   assert.ok(board.querySelector('.cell-layer'), 'cell layer present');
   assert.ok(board.querySelector('.tile-layer'), 'tile layer present');
   assert.ok(document.querySelectorAll('.tile').length >= 2, 'a new game spawns 2 tiles');
 });
 
-test('boot: score/best boxes exist and show numbers', () => {
+test('play: score/best boxes exist and show numbers', async () => {
+  await bootPlay('classic', 't-score');
   assert.ok(/^\d+$/.test(document.getElementById('score').textContent));
   assert.ok(/^\d+$/.test(document.getElementById('best').textContent));
 });
 
-test('boot: size and theme selects are populated', () => {
+test('play: size and theme selects are populated', async () => {
+  await bootPlay('classic', 't-selects');
   assert.ok(document.getElementById('board-size').options.length >= 9);
   assert.ok(document.getElementById('theme').options.length >= 4);
 });
 
-test('boot: pressing an arrow key dispatches a move without errors', () => {
-  const evt = new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true });
-  window.dispatchEvent(evt);
+test('play: pressing an arrow key dispatches a move without errors', async () => {
+  const dom = await bootPlay('classic', 't-keys');
+  const evt = new dom.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true });
+  dom.window.dispatchEvent(evt);
   assert.ok(true);
 });
 
-test('boot: undo button exists and new game button works', () => {
+test('play: undo button exists and new game button works', async () => {
+  const dom = await bootPlay('classic', 't-undo');
   const ng = document.getElementById('new-game');
   ng.click();
   assert.ok(document.querySelectorAll('.tile').length >= 2);
-});
-
-test('boot: switching modes updates the HUD extras', () => {
-  const tabs = document.querySelectorAll('#mode-tabs button');
-  assert.equal(tabs.length, 4, 'four modes');
-
-  const find = (label) => [...tabs].find((b) => b.textContent === label);
-  const hud = document.getElementById('hud-extra');
-
-  find('Time').click();
-  assert.ok(hud.querySelector('.timer-bar'), 'time mode shows timer bar');
-  find('Moves').click();
-  assert.ok(hud.querySelector('#moves-left'), 'moves mode shows moves chip');
-  assert.ok(document.getElementById('moves-left').textContent, 'moves counter present');
-  find('Daily').click();
-  assert.ok(hud.querySelector('.daily-chip'), 'daily mode shows daily chip');
-  assert.ok(document.getElementById('board-size').disabled, 'board size locked in daily mode');
-  find('Classic').click();
-  assert.ok(hud.querySelector('.chip'), 'classic mode shows target chip');
-  assert.ok(!document.getElementById('board-size').disabled, 'board size re-enabled');
-
-  // undo must work after the mode switches (new games each time)
   document.getElementById('undo').click();
   assert.ok(true);
+});
+
+test('play: time mode shows timer bar, moves mode shows moves chip', async () => {
+  const domTime = await bootPlay('time', 't-time');
+  const hudTime = document.getElementById('hud-extra');
+  assert.ok(hudTime.querySelector('.timer-bar'), 'time mode shows timer bar');
+  assert.ok(hudTime.querySelector('#time-chip'), 'time mode shows time chip');
+  assert.match(hudTime.querySelector('#time-chip').textContent, /^\d+:\d+$/);
+  domTime.window.dispatchEvent(new domTime.window.Event('pagehide'));
+
+  const domMoves = await bootPlay('moves', 't-moves');
+  const hudMoves = document.getElementById('hud-extra');
+  assert.ok(hudMoves.querySelector('#moves-left'), 'moves mode shows moves chip');
+  assert.match(hudMoves.querySelector('#moves-left').textContent, /^\d+$/);
+  domMoves.window.close();
+});
+
+test('play: daily mode shows daily chip and locks board size', async () => {
+  const dom = await bootPlay('daily', 't-daily');
+  const hud = document.getElementById('hud-extra');
+  assert.ok(hud.querySelector('.daily-chip'), 'daily mode shows daily chip');
+  assert.ok(document.getElementById('board-size').disabled, 'board size locked in daily mode');
+  dom.window.close();
+});
+
+test('play: unknown mode falls back to classic', async () => {
+  await bootPlay('bogus', 't-fallback');
+  const hud = document.getElementById('hud-extra');
+  assert.ok(hud.querySelector('.chip'), 'classic hud shown');
+  assert.equal(hud.querySelector('.timer-bar'), null, 'no timer for fallback');
 });

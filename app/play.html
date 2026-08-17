@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="TileShift — a fresh take on the slide-and-merge puzzle. Classic, Time Attack, Moves and Daily modes. Play offline." />
+  <title>TileShift</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <h1>TileShift</h1>
+        <p class="tagline">slide &amp; merge puzzle</p>
+      </div>
+      <div class="scores">
+        <div class="score-box">
+          <div class="label">SCORE</div>
+          <div class="value" id="score">0</div>
+        </div>
+        <div class="score-box">
+          <div class="label">BEST</div>
+          <div class="value" id="best">0</div>
+        </div>
+      </div>
+    </header>
+
+    <div id="hud-extra" class="hud-extra"></div>
+
+    <div class="controls">
+      <a class="btn home-link" href="./">Home</a>
+      <select id="board-size" aria-label="Board size"></select>
+      <select id="theme" aria-label="Theme"></select>
+      <button id="undo" disabled>Undo</button>
+      <button id="new-game">New Game</button>
+      <button id="stats-btn">Stats</button>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="board"></div>
+      <div id="combo-toast" class="combo-toast hidden"></div>
+
+      <div id="win-overlay" class="overlay hidden">
+        <h2 id="win-title">You win!</h2>
+        <p class="score-note" id="win-subtitle">You reached the 2048 tile.</p>
+        <div class="actions">
+          <button id="win-continue">Keep Going</button>
+          <button id="win-new">New Game</button>
+        </div>
+      </div>
+
+      <div id="game-over-overlay" class="overlay hidden">
+        <h2 id="over-title">Game Over</h2>
+        <p class="score-note">Score: <span id="over-score">0</span></p>
+        <div class="actions">
+          <button id="over-new">New Game</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">Swipe, drag or use arrow keys to move tiles</p>
+
+    <div class="dpad" aria-label="Move controls">
+      <button class="up" data-dir="up" aria-label="Move up">&#9650;</button>
+      <button class="left" data-dir="left" aria-label="Move left">&#9664;</button>
+      <button class="down" data-dir="down" aria-label="Move down">&#9660;</button>
+      <button class="right" data-dir="right" aria-label="Move right">&#9654;</button>
+    </div>
+
+    <footer>TileShift &mdash; play offline, no ads, no data collection</footer>
+  </div>
+
+  <div id="stats-modal" class="modal hidden" role="dialog" aria-label="Stats">
+    <div class="modal-card">
+      <h2>Your Stats</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-value" id="stat-games">0</span><span class="stat-label">Games</span></div>
+        <div class="stat"><span class="stat-value" id="stat-moves">0</span><span class="stat-label">Moves</span></div>
+        <div class="stat"><span class="stat-value" id="stat-merges">0</span><span class="stat-label">Merges</span></div>
+        <div class="stat"><span class="stat-value" id="stat-tile">0</span><span class="stat-label">Best Tile</span></div>
+      </div>
+      <p class="score-note">Best score: <span id="stat-best">0</span></p>
+      <button id="stats-close">Close</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+</body>
+</html>

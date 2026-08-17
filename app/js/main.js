@@ -23,13 +23,6 @@ const undoBtn = $('#undo');
 const TIME_LIMIT_MS = 180000; // 3 minutes
 const MOVES_LIMIT = 100;
 
-const MODE_DEFS = [
-  { id: MODES.CLASSIC, label: 'Classic', hint: 'Free play, reach the target tile' },
-  { id: MODES.TIME, label: 'Time', hint: '3 minutes to reach the highest tile' },
-  { id: MODES.MOVES, label: 'Moves', hint: `Reach the target in ${MOVES_LIMIT} moves` },
-  { id: MODES.DAILY, label: 'Daily', hint: 'One fresh seeded puzzle each day' },
-];
-
 const BOARD_SIZES = [
   { rows: 4, cols: 4, label: 'Classic 4×4' },
   { rows: 3, cols: 3, label: '3×3' },
@@ -44,6 +37,8 @@ const BOARD_SIZES = [
 ];
 
 const settings = loadSettings();
+settings.mode = modeFromUrl();
+saveSettings(settings);
 let game = null;
 let stats = loadStats();
 let prevOver = false;
@@ -90,33 +85,10 @@ async function hapticNotify(type) {
   }
 }
 
-// ---- Mode tabs ----
-function buildModeTabs() {
-  const wrap = $('#mode-tabs');
-  wrap.innerHTML = '';
-  for (const m of MODE_DEFS) {
-    const b = document.createElement('button');
-    b.dataset.mode = m.id;
-    b.textContent = m.label;
-    b.title = m.hint;
-    b.addEventListener('click', () => setMode(m.id));
-    wrap.appendChild(b);
-  }
-  syncModeTabs();
-}
-
-function syncModeTabs() {
-  document.querySelectorAll('#mode-tabs button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.mode === settings.mode);
-  });
-}
-
-function setMode(mode) {
-  if (mode === settings.mode) return;
-  settings.mode = mode;
-  saveSettings(settings);
-  syncModeTabs();
-  newGame();
+// ---- Mode from URL ----
+function modeFromUrl() {
+  const m = new URLSearchParams(window.location.search).get('mode');
+  return Object.values(MODES).includes(m) ? m : MODES.CLASSIC;
 }
 
 // ---- HUD ----
@@ -286,6 +258,20 @@ function clearTimer() {
   }
 }
 
+// Pause the clock when the app goes to the background.
+window.addEventListener('pagehide', clearTimer);
+window.addEventListener('visibilitychange', () => {
+  if (
+    document.visibilityState === 'visible' &&
+    game &&
+    game.mode === MODES.TIME &&
+    !game.over &&
+    !game.won
+  ) {
+    startTimer();
+  }
+});
+
 // ---- Stats modal ----
 function renderStats() {
   $('#stat-games').textContent = stats.games;
@@ -417,7 +403,6 @@ function buildThemeOptions() {
 }
 
 // ---- Boot ----
-buildModeTabs();
 buildSizeOptions();
 buildThemeOptions();
 $('#board-size').disabled = settings.mode === MODES.DAILY;
