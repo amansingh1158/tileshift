@@ -15,6 +15,7 @@ import {
   saveStats,
 } from './storage.js';
 import { BoardView, THEMES } from './ui.js';
+import { showBanner } from './ads.js';
 
 const $ = (sel) => document.querySelector(sel);
 const isNative = Capacitor.isNativePlatform();
@@ -361,11 +362,6 @@ boardEl.addEventListener('pointerup', (e) => {
   }
 });
 
-// On-screen D-pad
-document.querySelectorAll('.dpad button').forEach((btn) => {
-  btn.addEventListener('click', () => tryMove(btn.dataset.dir));
-});
-
 // ---- Controls ----
 $('#new-game').addEventListener('click', newGame);
 undoBtn.addEventListener('click', doUndo);
@@ -450,3 +446,4 @@ else if (game.over) showGameOver();
 renderHudExtra();
 updateHud();
 if (game.mode === MODES.TIME) startTimer();
+showBanner();

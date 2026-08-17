@@ -50,10 +50,11 @@
       </div>
     </section>
 
-    <footer>TileShift &mdash; play offline, no ads, no data collection</footer>
+    <div id="banner" class="banner-slot"></div>
   </div>
 
   <script type="module" src="js/landing.js"></script>
+  <script type="module" src="js/ads.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));

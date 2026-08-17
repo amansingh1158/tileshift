@@ -1,4 +1,4 @@
-const CACHE = 'tileshift-v7';
+const CACHE = 'tileshift-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,8 @@ const ASSETS = [
   './js/leaderboard.js',
   './js/fb-auth.js',
   './js/firebase-config.js',
+  './js/ads.js',
+  './js/ads-config.js',
   './vendor/@capacitor/core/index.js',
   './vendor/@capacitor/haptics/index.js',
   './vendor/@capacitor/haptics/web.js',
@@ -19,6 +21,7 @@ const ASSETS = [
   './vendor/@capacitor-community/facebook-login/index.js',
   './vendor/@capacitor-community/facebook-login/web.js',
   './vendor/@capacitor-community/facebook-login/definitions.js',
+  './vendor/@capacitor-community/admob/index.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

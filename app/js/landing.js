@@ -1,6 +1,7 @@
 import { isConfigured } from './firebase-config.js';
 import { getIdentity, isNative, signInWithFacebook, signOutFacebook } from './fb-auth.js';
 import { fetchTopScores, flushQueue, getPlayerId } from './leaderboard.js';
+import { showBanner } from './ads.js';
 
 const MODES = [
   { id: 'classic', label: 'Classic' },
@@ -62,7 +63,6 @@ async function render() {
     await flushQueue();
     const rows = await fetchTopScores(currentMode, 10);
     renderRows(rows);
-    statusEl.textContent = 'Scores sync to Firebase when a game ends.';
   } catch (e) {
     renderNote('Could not reach the leaderboard. Check your connection.');
     statusEl.textContent = '';
@@ -124,3 +124,4 @@ if (isNative()) {
 buildTabs();
 render();
 window.addEventListener('online', render);
+showBanner();
