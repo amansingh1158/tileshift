@@ -20,6 +20,10 @@ body {
   padding: 0;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   background: var(--bg);
   color: var(--text);

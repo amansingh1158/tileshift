@@ -5,6 +5,7 @@ import { JSDOM } from 'jsdom';
 
 const landingHtml = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
 const playHtml = readFileSync(new URL('../app/play.html', import.meta.url), 'utf8');
+const styleCss = readFileSync(new URL('../app/css/style.css', import.meta.url), 'utf8');
 
 const doms = [];
 
@@ -58,6 +59,12 @@ test('landing: shows only the four mode menus', () => {
 
   assert.equal(dom.window.document.getElementById('board'), null, 'no board on landing page');
   assert.equal(dom.window.document.querySelector('.mode-tabs'), null, 'no in-game tabs');
+});
+
+test('play: combo toast is hidden by a generic .hidden rule', () => {
+  const genericHidden = /\.hidden\s*\{\s*display:\s*none\s*!important;\s*\}/.test(styleCss);
+  assert.ok(genericHidden, 'style.css defines .hidden { display: none !important }');
+  assert.match(styleCss, /animation:\s*combo-pop 1s ease forwards/, 'toast fades out and stays faded');
 });
 
 test('play: page renders a board with tiles (classic)', async () => {

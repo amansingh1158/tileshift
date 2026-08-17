@@ -184,6 +184,12 @@ function checkEnd() {
 // ---- Combo toast ----
 const toast = $('#combo-toast');
 
+toast.addEventListener('animationend', (e) => {
+  if (e.animationName !== 'combo-pop') return;
+  toast.classList.add('hidden');
+  toast.classList.remove('pop');
+});
+
 function showCombo(count, bonus) {
   toast.textContent = `COMBO x${count}  +${bonus}`;
   toast.classList.remove('hidden');
