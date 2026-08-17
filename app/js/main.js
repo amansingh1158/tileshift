@@ -1,6 +1,8 @@
 import { Capacitor } from '../vendor/@capacitor/core/index.js';
 import { Haptics, ImpactStyle, NotificationType } from '../vendor/@capacitor/haptics/index.js';
 import { COMBO_BONUS, DIRECTIONS, MODES, Game, highestTile } from './engine.js';
+import { isConfigured as leaderboardConfigured } from './firebase-config.js';
+import { submitScore } from './leaderboard.js';
 import {
   bestScoreFor,
   loadSettings,
@@ -167,6 +169,9 @@ function recordGameEnd() {
   stats.bestTile = Math.max(stats.bestTile, highestTile(game.board));
   stats.bestScore = Math.max(stats.bestScore, game.score);
   saveStats(stats);
+  if (leaderboardConfigured() && game.score > 0) {
+    submitScore(game.mode, { score: game.score, tile: stats.bestTile }).catch(() => {});
+  }
 }
 
 function checkEnd() {

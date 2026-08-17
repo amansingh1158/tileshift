@@ -1,4 +1,4 @@
-const CACHE = 'tileshift-v5';
+const CACHE = 'tileshift-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const ASSETS = [
   './js/storage.js',
   './js/ui.js',
   './js/main.js',
+  './js/landing.js',
+  './js/leaderboard.js',
+  './js/firebase-config.js',
   './vendor/@capacitor/core/index.js',
   './vendor/@capacitor/haptics/index.js',
   './vendor/@capacitor/haptics/web.js',

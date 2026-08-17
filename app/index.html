@@ -39,9 +39,17 @@
       </a>
     </nav>
 
+    <section class="leaderboard" id="leaderboard">
+      <h2 class="lb-title">Leaderboard</h2>
+      <div class="lb-tabs" id="lb-tabs"></div>
+      <ol class="lb-list" id="lb-list"><li class="lb-note">Loading&hellip;</li></ol>
+      <p class="lb-status" id="lb-status"></p>
+    </section>
+
     <footer>TileShift &mdash; play offline, no ads, no data collection</footer>
   </div>
 
+  <script type="module" src="js/landing.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
