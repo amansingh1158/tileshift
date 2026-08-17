@@ -1,5 +1,5 @@
 {
-  "appId": "com.yourname.tileshift",
+  "appId": "com.tileshift.game",
   "appName": "TileShift",
   "webDir": "app",
   "server": {

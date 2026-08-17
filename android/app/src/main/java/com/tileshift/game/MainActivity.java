@@ -1,4 +1,4 @@
-package com.yourname.twozerofour8;
+package com.tileshift.game;
 
 import com.getcapacitor.BridgeActivity;
 

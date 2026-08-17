@@ -4,6 +4,6 @@
     <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
 <string name="app_name">TileShift</string>
     <string name="title_activity_main">TileShift</string>
-    <string name="package_name">com.yourname.tileshift</string>
-    <string name="custom_url_scheme">com.yourname.tileshift</string>
+    <string name="package_name">com.tileshift.game</string>
+    <string name="custom_url_scheme">com.tileshift.game</string>
 </resources>

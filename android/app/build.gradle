@@ -14,10 +14,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.yourname.twozerofour8"
+    namespace = "com.tileshift.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.yourname.twozerofour8"
+        applicationId "com.tileshift.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
