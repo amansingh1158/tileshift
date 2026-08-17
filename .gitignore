@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+*.keystore
+*.jks
+android/keystore.properties
+
+# Local environment
+.env
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

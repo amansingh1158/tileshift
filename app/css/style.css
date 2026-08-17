@@ -1,0 +1,298 @@
+:root {
+  --bg: #faf8ef;
+  --text: #776e65;
+  --muted: #8f8781;
+  --board-bg: #bbada0;
+  --cell-bg: #cdc1b4;
+  --tile-glow: rgba(255, 255, 255, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+  touch-action: manipulation;
+  overflow-x: hidden;
+}
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px 12px 32px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1;
+  letter-spacing: 1px;
+  user-select: none;
+}
+
+.scores {
+  display: flex;
+  gap: 8px;
+}
+
+.score-box {
+  background: var(--board-bg);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  text-align: center;
+  min-width: 84px;
+  user-select: none;
+}
+
+.score-box .label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+
+.score-box .value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+select,
+button {
+  font: inherit;
+  font-size: 14px;
+  color: #fff;
+  background: var(--board-bg);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+select {
+  color: #fff;
+  background: var(--board-bg);
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='white' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.board-wrap {
+  position: relative;
+  width: 100%;
+  user-select: none;
+  touch-action: none;
+}
+
+.board {
+  position: relative;
+  background: var(--board-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: background 0.3s ease;
+}
+
+.cell-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+}
+
+.cell {
+  background: var(--cell-bg);
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+
+.tile-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 6px;
+  transition: transform 0.14s ease-in-out, background-color 0.2s ease, color 0.2s ease;
+  box-shadow: 0 0 8px var(--tile-glow);
+  will-change: transform;
+}
+
+@keyframes tile-spawn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tile-spawn {
+  animation: tile-spawn 0.2s ease;
+}
+
+@keyframes tile-merge {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.tile-merge {
+  animation: tile-merge 0.2s ease;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(238, 228, 218, 0.8);
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+  transition: background 0.3s ease;
+}
+
+body[data-dark] .overlay {
+  background: rgba(20, 20, 28, 0.82);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay h2 {
+  margin: 0;
+  font-size: 34px;
+}
+
+.overlay .score-note {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.overlay .actions {
+  display: flex;
+  gap: 10px;
+}
+
+.overlay button {
+  font-size: 15px;
+  padding: 10px 18px;
+}
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 8px;
+  justify-content: center;
+  margin: 4px auto 0;
+}
+
+.dpad button {
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+
+.dpad .up {
+  grid-column: 2;
+}
+
+.dpad .left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.dpad .down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.dpad .right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+footer {
+  margin-top: auto;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 380px) {
+  h1 {
+    font-size: 34px;
+  }
+
+  .score-box {
+    min-width: 70px;
+    padding: 5px 10px;
+  }
+
+  .score-box .value {
+    font-size: 18px;
+  }
+}
