@@ -1,4 +1,4 @@
-const CACHE = 'tileshift-v3';
+const CACHE = 'tileshift-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,10 @@ const ASSETS = [
   './js/storage.js',
   './js/ui.js',
   './js/main.js',
+  './vendor/@capacitor/core/index.js',
+  './vendor/@capacitor/haptics/index.js',
+  './vendor/@capacitor/haptics/web.js',
+  './vendor/@capacitor/haptics/definitions.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
