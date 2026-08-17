@@ -191,7 +191,10 @@ function showCombo(count, bonus) {
   void toast.offsetWidth; // restart animation
   toast.classList.add('pop');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.add('hidden'), 1000);
+  toastTimer = setTimeout(() => {
+    toast.classList.add('hidden');
+    toast.classList.remove('pop');
+  }, 900);
 }
 
 // ---- Game flow ----

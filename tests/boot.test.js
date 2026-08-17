@@ -66,6 +66,9 @@ test('play: page renders a board with tiles (classic)', async () => {
   assert.ok(board.querySelector('.cell-layer'), 'cell layer present');
   assert.ok(board.querySelector('.tile-layer'), 'tile layer present');
   assert.ok(document.querySelectorAll('.tile').length >= 2, 'a new game spawns 2 tiles');
+  const toast = document.getElementById('combo-toast');
+  assert.ok(toast, 'combo toast element exists');
+  assert.ok(toast.classList.contains('hidden'), 'combo toast starts hidden');
 });
 
 test('play: score/best boxes exist and show numbers', async () => {

@@ -266,7 +266,7 @@ select:disabled {
 }
 
 .combo-toast.pop {
-  animation: combo-pop 1s ease;
+  animation: combo-pop 1s ease forwards;
 }
 
 @keyframes combo-pop {
