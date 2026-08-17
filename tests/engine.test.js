@@ -151,12 +151,20 @@ test('Game: serialize/deserialize round-trip', () => {
 });
 
 test('move emits animation plan with from/to and merge flags', () => {
-  // Row: 2@0, 2@1, 4@2 -> left => merged 4@0 (from 1), slide 4@2->1
+  // Row: 2@0, 2@1, 4@2 -> left => merged 4@0 (survivor 0, consumed 1), slide 4@2->1
   const { plan } = move({ rows: 1, cols: 4, cells: [2, 2, 4, 0] }, DIRECTIONS.LEFT);
   const merged = plan.find((p) => p.merged);
   const slide = plan.find((p) => !p.merged);
-  assert.deepEqual(merged, { value: 4, from: 1, to: 0, merged: true });
+  assert.deepEqual(merged, { value: 4, from: 1, survivor: 0, to: 0, merged: true });
   assert.deepEqual(slide, { value: 4, from: 2, to: 1, merged: false });
+});
+
+test('move plan: merge over empty cells keeps survivor at destination', () => {
+  // Row: 0, 2@1, 2@2, 0 -> left => merged 4 must land at cell 0.
+  const { board, plan } = move({ rows: 1, cols: 4, cells: [0, 2, 2, 0] }, DIRECTIONS.LEFT);
+  assert.deepEqual(board.cells, [4, 0, 0, 0]);
+  const merged = plan.find((p) => p.merged);
+  assert.deepEqual(merged, { value: 4, from: 2, survivor: 1, to: 0, merged: true });
 });
 
 test('Game: rectangle boards work', () => {

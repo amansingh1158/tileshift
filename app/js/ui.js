@@ -195,31 +195,35 @@ export class BoardView {
   applyMove(game, spawnIndex) {
     const plan = game.lastMovePlan || [];
     for (const p of plan) {
+      if (p.merged) {
+        // Surviving tile: move to the merge cell, inherit the doubled value, pop.
+        const survivor = this.tiles.get(p.survivor);
+        if (survivor) {
+          survivor.el.style.transform = this._transform(p.to);
+          survivor.value = p.value;
+          this._styleTile(survivor.el, p.value);
+          survivor.el.classList.remove('tile-spawn');
+          survivor.el.classList.remove('tile-merge');
+          void survivor.el.offsetWidth; // restart CSS animation
+          survivor.el.classList.add('tile-merge');
+          this.tiles.delete(p.survivor);
+          this.tiles.set(p.to, survivor);
+        }
+        // Consumed tile: slide into the merge cell, then disappear.
+        const consumed = this.tiles.get(p.from);
+        if (consumed) {
+          consumed.el.style.transform = this._transform(p.to);
+          const consumedEl = consumed.el;
+          setTimeout(() => consumedEl.remove(), MOVE_MS + 40);
+          this.tiles.delete(p.from);
+        }
+        continue;
+      }
       const rec = this.tiles.get(p.from);
       if (!rec) continue;
       rec.el.style.transform = this._transform(p.to);
-      if (p.merged) {
-        // Consumed tile slides into the target, then disappears.
-        const fromKey = p.from;
-        const consumedEl = rec.el;
-        setTimeout(() => {
-          consumedEl.remove();
-        }, MOVE_MS + 40);
-        this.tiles.delete(fromKey);
-        // Surviving tile inherits the merged value and pops.
-        const target = this.tiles.get(p.to);
-        if (target) {
-          target.value = p.value;
-          this._styleTile(target.el, p.value);
-          target.el.classList.remove('tile-spawn');
-          target.el.classList.remove('tile-merge');
-          void target.el.offsetWidth; // restart CSS animation
-          target.el.classList.add('tile-merge');
-        }
-      } else {
-        this.tiles.delete(p.from);
-        this.tiles.set(p.to, { el: rec.el, value: p.value });
-      }
+      this.tiles.delete(p.from);
+      this.tiles.set(p.to, { el: rec.el, value: p.value });
     }
 
     // Safety pass: drop any tiles whose cells are now empty.

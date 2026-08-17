@@ -57,9 +57,11 @@ function lineAt(board, dir, index) {
 
 // Slide + merge the whole board in a direction.
 // Returns { board, score, moved, plan } where plan describes every tile that
-// moved or merged: { value, from, to, merged }. `to` is the absolute cell index
-// the tile now occupies; for a merged tile `from` is the cell of the tile that
-// slid in and disappeared, and the surviving tile sits at `to`.
+// moved or merged: { value, from, survivor, to, merged }. `to` is the absolute
+// cell index the tile now occupies. For a merged tile, `from` is the cell of
+// the tile that slid in and disappeared, `survivor` is the cell of the tile
+// that survives the merge (it moves to `to` and doubles), and the surviving
+// tile sits at `to` afterwards.
 export function move(board, dir) {
   const next = cloneBoard(board);
   let score = 0;
@@ -74,7 +76,7 @@ export function move(board, dir) {
     for (const tile of res.out) {
       if (tile.value !== 0) {
         if (tile.merged) {
-          plan.push({ value: tile.value, from: tile.srcs[1], to: tile.to, merged: true });
+          plan.push({ value: tile.value, from: tile.srcs[1], survivor: tile.srcs[0], to: tile.to, merged: true });
         } else {
           plan.push({ value: tile.value, from: tile.srcs[0], to: tile.to, merged: false });
         }

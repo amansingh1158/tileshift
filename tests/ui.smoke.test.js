@@ -41,29 +41,37 @@ test('ui: setSize rebuilds the background grid', () => {
   assert.equal(view.cellLayer.querySelectorAll('.cell').length, 15);
 });
 
-test('ui: applyMove slides and merges tiles', () => {
+test('ui: applyMove keeps merged tiles when pair slides over empty cells', () => {
   view.setSize(4, 4);
   const game = new Game({ seed: 1 });
-  // Row 0: [2,2,4,0], other rows empty -> LEFT merge produces 4@0, slide 4 to 1
+  // Row 0: [0,2,2,0] LEFT -> merged 4 must end up at cell 0 (this used to vanish).
+  game.board.cells = [0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  view.render(game);
+  assert.equal(view.tiles.size, 2);
+
+  const moved = game.attemptMove('left');
+  assert.equal(moved, true);
+  view.applyMove(game, game.lastSpawnIndex);
+
+  const expectedFilled = game.board.cells.filter((v) => v !== 0).length;
+  assert.equal(view.tiles.size, expectedFilled, 'every engine tile has a DOM tile');
+  assert.equal(view.tiles.get(0).value, 4, 'merged 4 is rendered at cell 0');
+});
+
+test('ui: applyMove with merge and follow-up slide keeps all tiles', () => {
+  view.setSize(4, 4);
+  const game = new Game({ seed: 1 });
+  // Row 0: [2,2,4,0] LEFT -> merged 4@0, slid 4@1, plus spawn.
   game.board.cells = [2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   view.render(game);
-  assert.equal(view.tiles.size, 3);
-
-  const { board, plan } = (() => {
-    // Replay the same move the engine would do.
-    const moved = game.attemptMove('left');
-    assert.equal(moved, true);
-    return { board: game.board, plan: game.lastMovePlan };
-  })();
-
+  const moved = game.attemptMove('left');
+  assert.equal(moved, true);
   view.applyMove(game, game.lastSpawnIndex);
-  // After a 2+2 merge and 4 sliding, there are 2 surviving tiles + 1 spawn.
-  const expectedFilled = board.cells.filter((v) => v !== 0).length;
+  const expectedFilled = game.board.cells.filter((v) => v !== 0).length;
   assert.equal(view.tiles.size, expectedFilled);
   assert.ok(view.tiles.has(0), 'merged tile sits at index 0');
-  const merged = plan.find((p) => p.merged);
-  assert.ok(merged, 'plan must contain a merge entry');
-  assert.equal(view.tiles.get(0).value, 4, 'merged tile value updated');
+  assert.ok(view.tiles.has(1), 'slid tile sits at index 1');
+  assert.equal(view.tiles.get(0).value, 4);
 });
 
 test('ui: theme palette covers 2..2048 and high tiles', () => {
