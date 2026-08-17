@@ -1,7 +1,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { DIRECTIONS, Game } from '../app/js/engine.js';
+import { COMBO_BONUS, DIRECTIONS, Game } from '../app/js/engine.js';
 
 const dom = new JSDOM('<div id="board"></div>', { url: 'http://localhost/' });
 global.window = dom.window;
@@ -37,11 +37,11 @@ test('fuzz: engine and view stay in sync across many games and moves', () => {
         for (const [idx, rec] of view.tiles) {
           assert.equal(g.board.cells[idx], rec.value, `seed ${seed} move ${i}: tile ${idx} value`);
         }
-        const mergedSum = (g.lastMovePlan || [])
-          .filter((p) => p.merged)
-          .reduce((s, p) => s + p.value, 0);
-        expectedScore += mergedSum;
-        assert.equal(g.score, expectedScore, `seed ${seed} move ${i}: score = sum of merges`);
+        const plan = g.lastMovePlan || [];
+        const merges = plan.filter((p) => p.merged).length;
+        const mergedSum = plan.filter((p) => p.merged).reduce((s, p) => s + p.value, 0);
+        expectedScore += mergedSum + (merges >= 2 ? (merges - 1) * COMBO_BONUS : 0);
+        assert.equal(g.score, expectedScore, `seed ${seed} move ${i}: score = merges + combos`);
         totalMoves++;
       }
       if (g.won) g.continueAfterWin();

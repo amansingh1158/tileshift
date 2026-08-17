@@ -1,10 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  COMBO_BONUS,
   DIRECTIONS,
+  MODES,
   Game,
   canMove,
   createBoard,
+  hashString,
   hasReached,
   highestTile,
   isGameOver,
@@ -177,4 +180,102 @@ test('Game: rectangle boards work', () => {
   const moved = g.attemptMove(DIRECTIONS.LEFT);
   assert.equal(moved, true);
   assert.ok(g.board.cells.filter((v) => v !== 0).length >= before);
+});
+
+test('move reports merge count', () => {
+  const two = move({ rows: 1, cols: 4, cells: [2, 2, 4, 8] }, DIRECTIONS.LEFT);
+  assert.equal(two.merges, 1);
+  const burst = move({ rows: 1, cols: 4, cells: [2, 2, 2, 2] }, DIRECTIONS.LEFT);
+  assert.equal(burst.merges, 2);
+  const none = move({ rows: 1, cols: 4, cells: [2, 4, 8, 16] }, DIRECTIONS.LEFT);
+  assert.equal(none.merges, 0);
+});
+
+test('Game: combo bonus for multi-merge moves', () => {
+  const g = new Game({ seed: 1 });
+  g.board.cells = [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  g.attemptMove(DIRECTIONS.LEFT);
+  // two 2+2 merges = 4 + 4 score, plus (2-1) combo bonus
+  assert.equal(g.score, 8 + COMBO_BONUS);
+  assert.equal(g.lastCombo, 2);
+});
+
+test('Game: single merge earns no combo bonus', () => {
+  const g = new Game({ seed: 1 });
+  g.board.cells = [2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  g.attemptMove(DIRECTIONS.LEFT);
+  assert.equal(g.score, 4);
+  assert.equal(g.lastCombo, 1);
+});
+
+test('Game: MOVES mode decrements and ends when moves run out', () => {
+  const g = new Game({ seed: 1, mode: MODES.MOVES, movesLimit: 3 });
+  g.reset();
+  // Board with plenty of free space so every move is valid.
+  g.board.cells[0] = 2;
+  g.attemptMove(DIRECTIONS.UP);
+  assert.equal(g.movesLeft, 2);
+  g.attemptMove(DIRECTIONS.DOWN);
+  g.attemptMove(DIRECTIONS.LEFT);
+  assert.equal(g.movesLeft, 0);
+  assert.equal(g.over, true);
+  // No more moves accepted after the limit.
+  assert.equal(g.attemptMove(DIRECTIONS.RIGHT), false);
+});
+
+test('Game: TIME mode tick counts down and ends the game', () => {
+  const g = new Game({ seed: 1, mode: MODES.TIME, timeLimit: 1000 });
+  g.reset();
+  g.tick(400);
+  assert.equal(g.timeLeft, 600);
+  assert.equal(g.over, false);
+  g.tick(600);
+  assert.equal(g.timeLeft, 0);
+  assert.equal(g.over, true);
+});
+
+test('Game: tick is a no-op outside TIME mode', () => {
+  const g = new Game({ seed: 1, mode: MODES.CLASSIC });
+  g.reset();
+  g.tick(999999);
+  assert.equal(g.over, false);
+});
+
+test('Game: DAILY mode is deterministic per key', () => {
+  const a = new Game({ dailyKey: '2026-08-17' });
+  a.reset();
+  const b = new Game({ dailyKey: '2026-08-17' });
+  b.reset();
+  assert.deepEqual(a.board.cells, b.board.cells, 'same key deals same opening board');
+  const c = new Game({ dailyKey: '2026-08-18' });
+  c.reset();
+  assert.notDeepEqual(a.board.cells, c.board.cells, 'different key deals different board');
+});
+
+test('hashString is stable and differs for distinct keys', () => {
+  assert.equal(hashString('2026-08-17'), hashString('2026-08-17'));
+  assert.notEqual(hashString('2026-08-17'), hashString('2026-08-18'));
+});
+
+test('Game: undo restores moves left in MOVES mode', () => {
+  const g = new Game({ seed: 1, mode: MODES.MOVES, movesLimit: 5 });
+  g.reset();
+  g.board.cells[0] = 4;
+  g.attemptMove(DIRECTIONS.LEFT);
+  assert.equal(g.movesLeft, 4);
+  g.undo();
+  assert.equal(g.movesLeft, 5);
+});
+
+test('Game: serialize round-trip keeps mode fields', () => {
+  const g = new Game({ seed: 1, mode: MODES.MOVES, movesLimit: 7, dailyKey: null });
+  g.reset();
+  g.board.cells[0] = 4;
+  g.attemptMove(DIRECTIONS.UP);
+  g.tick(1);
+  const restored = Game.deserialize(g.serialize());
+  assert.equal(restored.mode, MODES.MOVES);
+  assert.equal(restored.movesLimit, 7);
+  assert.equal(restored.movesLeft, g.movesLeft);
+  assert.equal(restored.timeLeft, g.timeLeft);
 });

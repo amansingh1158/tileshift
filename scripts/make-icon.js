@@ -105,10 +105,26 @@ function fillRoundRect(canvas, x0, y0, x1, y1, radius, [r, g, b]) {
 }
 
 // ---- Icon drawing ----
+// Brand mark: teal->indigo gradient tile with a white "T" glyph (TileShift).
+function drawGlyph(c, size, color) {
+  const th = 0.16 * size;
+  const gw = 0.56 * size;
+  const gh = 0.5 * size;
+  const cx = size / 2;
+  const cy = size / 2;
+  const xLeft = cx - gw / 2;
+  const xRight = cx + gw / 2;
+  const yTop = cy - gh / 2;
+  const yBottom = cy + gh / 2;
+  const rad = th * 0.45;
+  fillRoundRect(c, xLeft, yTop, xRight, yTop + th, rad, color); // top bar
+  fillRoundRect(c, cx - th / 2, yTop, cx + th / 2, yBottom, rad, color); // stem
+}
+
 function drawIcon(size, { rounded = false } = {}) {
   const c = makeCanvas(size);
-  const top = [242, 199, 63];
-  const bottom = [221, 156, 31];
+  const top = [34, 211, 238]; // #22d3ee
+  const bottom = [99, 102, 241]; // #6366f1
   for (let y = 0; y < size; y++) {
     const t = y / (size - 1);
     const r = Math.round(top[0] + (bottom[0] - top[0]) * t);
@@ -117,23 +133,7 @@ function drawIcon(size, { rounded = false } = {}) {
     for (let x = 0; x < size; x++) blend(c, x, y, r, g, b, 255);
   }
 
-  // White seven-segment "2" glyph
-  const th = 0.13 * size;
-  const gw = 0.54 * size;
-  const gh = 0.6 * size;
-  const cx = size / 2;
-  const cy = size * 0.52;
-  const xLeft = cx - gw / 2;
-  const xRight = cx + gw / 2;
-  const yTop = cy - gh / 2;
-  const yBottom = cy + gh / 2;
-  const white = [255, 255, 255];
-  const rad = th * 0.5;
-  fillRoundRect(c, xLeft, yTop, xRight, yTop + th, rad, white); // a
-  fillRoundRect(c, xRight - th, yTop, xRight, cy, rad, white); // b
-  fillRoundRect(c, xLeft, cy - th / 2, xRight, cy + th / 2, rad, white); // g
-  fillRoundRect(c, xLeft, cy, xLeft + th, yBottom, rad, white); // e
-  fillRoundRect(c, xLeft, yBottom - th, xRight, yBottom, rad, white); // d
+  drawGlyph(c, size, [255, 255, 255]);
 
   if (rounded) {
     // Cut square corners (favicon style).
@@ -178,22 +178,7 @@ console.log('wrote android mipmap sources');
 // Adaptive icon foregrounds (transparent bg + white glyph inside the safe zone).
 function drawForeground(size) {
   const c = makeCanvas(size);
-  const th = 0.13 * size;
-  const gw = 0.54 * size;
-  const gh = 0.6 * size;
-  const cx = size / 2;
-  const cy = size * 0.52;
-  const xLeft = cx - gw / 2;
-  const xRight = cx + gw / 2;
-  const yTop = cy - gh / 2;
-  const yBottom = cy + gh / 2;
-  const white = [255, 255, 255];
-  const rad = th * 0.5;
-  fillRoundRect(c, xLeft, yTop, xRight, yTop + th, rad, white); // a
-  fillRoundRect(c, xRight - th, yTop, xRight, cy, rad, white); // b
-  fillRoundRect(c, xLeft, cy - th / 2, xRight, cy + th / 2, rad, white); // g
-  fillRoundRect(c, xLeft, cy, xLeft + th, yBottom, rad, white); // e
-  fillRoundRect(c, xLeft, yBottom - th, xRight, yBottom, rad, white); // d
+  drawGlyph(c, size, [255, 255, 255]);
   return encodePng(size, size, c.buf);
 }
 

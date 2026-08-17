@@ -1,16 +1,34 @@
-import { DIRECTIONS, Game } from './engine.js';
-import { loadState, loadSettings, saveSettings, saveState } from './storage.js';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { COMBO_BONUS, DIRECTIONS, MODES, Game, highestTile } from './engine.js';
+import {
+  bestScoreFor,
+  loadSettings,
+  loadState,
+  loadStats,
+  saveBestScore,
+  saveSettings,
+  saveState,
+  saveStats,
+} from './storage.js';
 import { BoardView, THEMES } from './ui.js';
 
 const $ = (sel) => document.querySelector(sel);
+const isNative = Capacitor.isNativePlatform();
 
 const scoreEl = $('#score');
 const bestEl = $('#best');
-const winOverlay = $('#win-overlay');
-const overOverlay = $('#game-over-overlay');
-const winScore = $('#win-score');
-const overScore = $('#over-score');
 const undoBtn = $('#undo');
+
+const TIME_LIMIT_MS = 180000; // 3 minutes
+const MOVES_LIMIT = 100;
+
+const MODE_DEFS = [
+  { id: MODES.CLASSIC, label: 'Classic', hint: 'Free play, reach the target tile' },
+  { id: MODES.TIME, label: 'Time', hint: '3 minutes to reach the highest tile' },
+  { id: MODES.MOVES, label: 'Moves', hint: `Reach the target in ${MOVES_LIMIT} moves` },
+  { id: MODES.DAILY, label: 'Daily', hint: 'One fresh seeded puzzle each day' },
+];
 
 const BOARD_SIZES = [
   { rows: 4, cols: 4, label: 'Classic 4×4' },
@@ -27,91 +45,268 @@ const BOARD_SIZES = [
 
 const settings = loadSettings();
 let game = null;
-let currentBest = 0;
+let stats = loadStats();
+let prevOver = false;
+let prevWon = false;
+let timerId = null;
+let toastTimer = null;
 
 const boardView = new BoardView($('#board'));
 boardView.setTheme(settings.theme);
 
-function buildSizeOptions() {
-  const sel = $('#board-size');
-  sel.innerHTML = '';
-  BOARD_SIZES.forEach((s, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = s.label;
-    sel.appendChild(opt);
-  });
-  const idx = BOARD_SIZES.findIndex((s) => s.rows === settings.rows && s.cols === settings.cols);
-  sel.value = String(idx >= 0 ? idx : 0);
+function dailyKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function buildThemeOptions() {
-  const sel = $('#theme');
-  sel.innerHTML = '';
-  for (const [key, t] of Object.entries(THEMES)) {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = t.label;
-    sel.appendChild(opt);
+function createGame() {
+  const isDaily = settings.mode === MODES.DAILY;
+  return new Game({
+    rows: isDaily ? 4 : settings.rows,
+    cols: isDaily ? 4 : settings.cols,
+    mode: settings.mode,
+    movesLimit: MOVES_LIMIT,
+    timeLimit: TIME_LIMIT_MS,
+    dailyKey: isDaily ? dailyKey() : null,
+  });
+}
+
+// ---- Haptics (Android only) ----
+async function hapticImpact(style) {
+  if (!isNative) return;
+  try {
+    await Haptics.impact({ style });
+  } catch (e) {
+    // ignore
   }
-  sel.value = settings.theme;
+}
+
+async function hapticNotify(type) {
+  if (!isNative) return;
+  try {
+    await Haptics.notification({ type });
+  } catch (e) {
+    // ignore
+  }
+}
+
+// ---- Mode tabs ----
+function buildModeTabs() {
+  const wrap = $('#mode-tabs');
+  wrap.innerHTML = '';
+  for (const m of MODE_DEFS) {
+    const b = document.createElement('button');
+    b.dataset.mode = m.id;
+    b.textContent = m.label;
+    b.title = m.hint;
+    b.addEventListener('click', () => setMode(m.id));
+    wrap.appendChild(b);
+  }
+  syncModeTabs();
+}
+
+function syncModeTabs() {
+  document.querySelectorAll('#mode-tabs button').forEach((b) => {
+    b.classList.toggle('active', b.dataset.mode === settings.mode);
+  });
+}
+
+function setMode(mode) {
+  if (mode === settings.mode) return;
+  settings.mode = mode;
+  saveSettings(settings);
+  syncModeTabs();
+  newGame();
+}
+
+// ---- HUD ----
+function renderHudExtra() {
+  const wrap = $('#hud-extra');
+  if (game.mode === MODES.TIME) {
+    wrap.innerHTML = `
+      <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
+      <span class="chip" id="time-chip">3:00</span>`;
+    updateTimerHud();
+  } else if (game.mode === MODES.MOVES) {
+    wrap.innerHTML = `
+      <span class="chip">Moves <b id="moves-left">${game.movesLeft}</b></span>
+      <span class="chip">Target ${game.target}</span>`;
+  } else if (game.mode === MODES.DAILY) {
+    wrap.innerHTML = `<span class="chip daily-chip">Daily ${game.dailyKey}</span><span class="chip">Target ${game.target}</span>`;
+  } else {
+    wrap.innerHTML = `<span class="chip">Target ${game.target}</span>`;
+  }
+}
+
+function updateTimerHud() {
+  const fill = $('#timer-fill');
+  const chip = $('#time-chip');
+  if (!fill || !chip) return;
+  fill.style.width = `${Math.max(0, (game.timeLeft / game.timeLimit) * 100)}%`;
+  fill.classList.toggle('low', game.timeLeft / game.timeLimit < 0.25);
+  const s = Math.ceil(game.timeLeft / 1000);
+  chip.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 function updateHud() {
   scoreEl.textContent = game.score;
-  bestEl.textContent = Math.max(game.best, currentBest);
+  bestEl.textContent = Math.max(game.best, bestScoreFor(game));
   undoBtn.disabled = !game.canUndo();
+  if (game.mode === MODES.MOVES) {
+    const el = $('#moves-left');
+    if (el) el.textContent = game.movesLeft;
+  }
+  saveBest();
 }
 
+function saveBest() {
+  if (game.best > bestScoreFor(game)) saveBestScore(game);
+}
+
+// ---- Overlays ----
 function hideOverlays() {
-  winOverlay.classList.add('hidden');
-  overOverlay.classList.add('hidden');
+  $('#win-overlay').classList.add('hidden');
+  $('#game-over-overlay').classList.add('hidden');
 }
 
 function showWin() {
-  winScore.textContent = game.score;
-  winOverlay.classList.remove('hidden');
+  const movesMode = game.mode === MODES.MOVES;
+  $('#win-title').textContent = movesMode ? 'Level Complete!' : 'You win!';
+  $('#win-subtitle').textContent = movesMode
+    ? `Reached the ${game.target} tile in ${MOVES_LIMIT - game.movesLeft} moves!`
+    : `You reached the ${game.target} tile.`;
+  $('#win-continue').classList.toggle('hidden', movesMode);
+  $('#win-overlay').classList.remove('hidden');
+  hapticNotify(NotificationType.Success);
 }
 
 function showGameOver() {
-  overScore.textContent = game.score;
-  overOverlay.classList.remove('hidden');
+  const titles = {
+    [MODES.MOVES]: 'Out of Moves!',
+    [MODES.TIME]: "Time's Up!",
+  };
+  $('#over-title').textContent = titles[game.mode] || 'Game Over';
+  $('#over-score').textContent = game.score;
+  $('#game-over-overlay').classList.remove('hidden');
 }
 
-function newGame() {
-  game = new Game({ rows: settings.rows, cols: settings.cols });
-  game.reset();
-  currentBest = game.best;
-  boardView.setSize(settings.rows, settings.cols);
-  boardView.render(game, { spawnAll: true });
-  hideOverlays();
-  updateHud();
-  saveState(game);
+function recordGameEnd() {
+  stats.games += 1;
+  stats.bestTile = Math.max(stats.bestTile, highestTile(game.board));
+  stats.bestScore = Math.max(stats.bestScore, game.score);
+  saveStats(stats);
 }
 
-function tryMove(dir) {
-  if (game.over) return;
-  const moved = game.attemptMove(dir);
-  if (!moved) return;
-  currentBest = Math.max(currentBest, game.best);
-  boardView.applyMove(game, game.lastSpawnIndex);
-  updateHud();
-  saveState(game);
-  if (game.won) {
+function checkEnd() {
+  if (game.won && !prevWon) {
+    prevWon = true;
     showWin();
-  } else if (game.over) {
+  }
+  if (game.over && !prevOver) {
+    prevOver = true;
+    recordGameEnd();
     showGameOver();
   }
 }
 
+// ---- Combo toast ----
+const toast = $('#combo-toast');
+
+function showCombo(count, bonus) {
+  toast.textContent = `COMBO x${count}  +${bonus}`;
+  toast.classList.remove('hidden');
+  toast.classList.remove('pop');
+  void toast.offsetWidth; // restart animation
+  toast.classList.add('pop');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 1000);
+}
+
+// ---- Game flow ----
+function newGame() {
+  clearTimer();
+  game = createGame();
+  game.reset();
+  prevOver = false;
+  prevWon = false;
+  boardView.setSize(game.rows, game.cols);
+  boardView.render(game, { spawnAll: true });
+  hideOverlays();
+  renderHudExtra();
+  updateHud();
+  saveState(game);
+  $('#board-size').disabled = settings.mode === MODES.DAILY;
+  if (game.mode === MODES.TIME) startTimer();
+}
+
+function tryMove(dir) {
+  if (!game || game.over) return;
+  const moved = game.attemptMove(dir);
+  if (!moved) return;
+  stats.moves += 1;
+  stats.merges += game.lastCombo;
+  saveStats(stats);
+  boardView.applyMove(game, game.lastSpawnIndex);
+  updateHud();
+  saveState(game);
+  if (game.lastCombo >= 1) hapticImpact(game.lastCombo >= 3 ? ImpactStyle.Medium : ImpactStyle.Light);
+  if (game.lastCombo >= 2) showCombo(game.lastCombo, (game.lastCombo - 1) * COMBO_BONUS);
+  checkEnd();
+}
+
 function doUndo() {
-  if (!game.canUndo()) return;
+  if (!game || !game.canUndo()) return;
   game.undo();
   boardView.render(game);
   hideOverlays();
+  prevOver = false;
+  prevWon = false;
   updateHud();
+  if (game.mode === MODES.TIME) updateTimerHud();
   saveState(game);
 }
+
+function startTimer() {
+  clearTimer();
+  timerId = setInterval(() => {
+    game.tick(250);
+    updateTimerHud();
+    saveState(game);
+    if (game.over) {
+      clearTimer();
+      checkEnd();
+    }
+  }, 250);
+}
+
+function clearTimer() {
+  if (timerId) {
+    clearInterval(timerId);
+    timerId = null;
+  }
+}
+
+// ---- Stats modal ----
+function renderStats() {
+  $('#stat-games').textContent = stats.games;
+  $('#stat-moves').textContent = stats.moves;
+  $('#stat-merges').textContent = stats.merges;
+  $('#stat-tile').textContent = stats.bestTile;
+  $('#stat-best').textContent = stats.bestScore;
+}
+
+$('#stats-btn').addEventListener('click', () => {
+  renderStats();
+  $('#stats-modal').classList.remove('hidden');
+});
+
+$('#stats-close').addEventListener('click', () => {
+  $('#stats-modal').classList.add('hidden');
+});
+
+$('#stats-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) $('#stats-modal').classList.add('hidden');
+});
 
 // ---- Input: keyboard ----
 const KEY_DIRS = {
@@ -187,6 +382,7 @@ $('#theme').addEventListener('change', (e) => {
 $('#win-continue').addEventListener('click', () => {
   game.continueAfterWin();
   hideOverlays();
+  prevWon = false;
   updateHud();
   saveState(game);
 });
@@ -194,19 +390,58 @@ $('#win-continue').addEventListener('click', () => {
 $('#win-new').addEventListener('click', newGame);
 $('#over-new').addEventListener('click', newGame);
 
+// ---- Build selects ----
+function buildSizeOptions() {
+  const sel = $('#board-size');
+  sel.innerHTML = '';
+  BOARD_SIZES.forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = s.label;
+    sel.appendChild(opt);
+  });
+  const idx = BOARD_SIZES.findIndex((s) => s.rows === settings.rows && s.cols === settings.cols);
+  sel.value = String(idx >= 0 ? idx : 0);
+}
+
+function buildThemeOptions() {
+  const sel = $('#theme');
+  sel.innerHTML = '';
+  for (const [key, t] of Object.entries(THEMES)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = t.label;
+    sel.appendChild(opt);
+  }
+  sel.value = settings.theme;
+}
+
 // ---- Boot ----
+buildModeTabs();
 buildSizeOptions();
 buildThemeOptions();
+$('#board-size').disabled = settings.mode === MODES.DAILY;
 
-const saved = loadState();
-if (saved && saved.rows === settings.rows && saved.cols === settings.cols) {
+game = createGame();
+const saved = loadState(game);
+if (
+  saved &&
+  saved.rows === game.rows &&
+  saved.cols === game.cols &&
+  saved.mode === game.mode &&
+  saved.dailyKey === game.dailyKey
+) {
   game = Game.deserialize(saved);
-  currentBest = game.best;
-  boardView.setSize(game.rows, game.cols);
-  boardView.render(game);
-  if (game.won && !game.continued) showWin();
-  else if (game.over) showGameOver();
 } else {
-  newGame();
+  game.reset();
 }
+
+prevOver = game.over;
+prevWon = game.won;
+boardView.setSize(game.rows, game.cols);
+boardView.render(game);
+if (game.won && !game.continued) showWin();
+else if (game.over) showGameOver();
+renderHudExtra();
 updateHud();
+if (game.mode === MODES.TIME) startTimer();

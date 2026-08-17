@@ -6,6 +6,27 @@ export const DEFAULT_TARGET = 2048;
 export const DEFAULT_ROWS = 4;
 export const DEFAULT_COLS = 4;
 
+// Game modes: classic free play, timed run, limited moves, seeded daily puzzle.
+export const MODES = Object.freeze({
+  CLASSIC: 'classic',
+  TIME: 'time',
+  MOVES: 'moves',
+  DAILY: 'daily',
+});
+
+export const COMBO_BONUS = 25; // bonus points per extra merge inside a single move
+export const DEFAULT_TIME_LIMIT = 180000; // 3 minutes
+export const DEFAULT_MOVES_LIMIT = 100;
+
+// Deterministic seed from an arbitrary key (used for the daily puzzle).
+export function hashString(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
 // Deterministic PRNG (mulberry32) so tests are reproducible.
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -56,16 +77,17 @@ function lineAt(board, dir, index) {
 }
 
 // Slide + merge the whole board in a direction.
-// Returns { board, score, moved, plan } where plan describes every tile that
-// moved or merged: { value, from, survivor, to, merged }. `to` is the absolute
-// cell index the tile now occupies. For a merged tile, `from` is the cell of
-// the tile that slid in and disappeared, `survivor` is the cell of the tile
-// that survives the merge (it moves to `to` and doubles), and the surviving
-// tile sits at `to` afterwards.
+// Returns { board, score, moved, plan, merges } where plan describes every tile
+// that moved or merged: { value, from, survivor, to, merged }. `to` is the
+// absolute cell index the tile now occupies. For a merged tile, `from` is the
+// cell of the tile that slid in and disappeared, `survivor` is the cell of the
+// tile that survives the merge (it moves to `to` and doubles), and the
+// surviving tile sits at `to` afterwards. `merges` counts merged pairs.
 export function move(board, dir) {
   const next = cloneBoard(board);
   let score = 0;
   let moved = false;
+  let merges = 0;
   const plan = [];
   const lineCount = dir === DIRECTIONS.UP || dir === DIRECTIONS.DOWN ? next.cols : next.rows;
   for (let i = 0; i < lineCount; i++) {
@@ -76,6 +98,7 @@ export function move(board, dir) {
     for (const tile of res.out) {
       if (tile.value !== 0) {
         if (tile.merged) {
+          merges++;
           plan.push({ value: tile.value, from: tile.srcs[1], survivor: tile.srcs[0], to: tile.to, merged: true });
         } else {
           plan.push({ value: tile.value, from: tile.srcs[0], to: tile.to, merged: false });
@@ -84,7 +107,7 @@ export function move(board, dir) {
     }
     setLineValues(next, dir, i, res.out);
   }
-  return { board: next, score, moved, plan };
+  return { board: next, score, moved, plan, merges };
 }
 
 // Compress + merge an indexed line (already oriented in travel direction).
@@ -173,11 +196,31 @@ export function hasReached(board, target) {
 
 // A full game session with score, undo history and end-of-game state.
 export class Game {
-  constructor({ rows = DEFAULT_ROWS, cols = DEFAULT_COLS, target = DEFAULT_TARGET, seed } = {}) {
+  constructor({
+    rows = DEFAULT_ROWS,
+    cols = DEFAULT_COLS,
+    target = DEFAULT_TARGET,
+    seed,
+    mode = MODES.CLASSIC,
+    movesLimit = DEFAULT_MOVES_LIMIT,
+    timeLimit = DEFAULT_TIME_LIMIT,
+    dailyKey = null,
+  } = {}) {
     this.rows = rows;
     this.cols = cols;
     this.target = target;
-    this.rng = seed !== undefined ? mulberry32(seed) : Math.random;
+    this.mode = mode;
+    this.movesLimit = movesLimit;
+    this.movesLeft = movesLimit;
+    this.timeLimit = timeLimit;
+    this.timeLeft = timeLimit;
+    this.dailyKey = dailyKey;
+    // Daily puzzles are deterministic: the same key always deals the same game.
+    if (dailyKey) {
+      this.rng = mulberry32(hashString(dailyKey));
+    } else {
+      this.rng = seed !== undefined ? mulberry32(seed) : Math.random;
+    }
     this.board = createBoard(rows, cols);
     this.score = 0;
     this.best = 0;
@@ -187,6 +230,7 @@ export class Game {
     this.history = [];
     this.lastMovePlan = [];
     this.lastSpawnIndex = null;
+    this.lastCombo = 0;
   }
 
   reset() {
@@ -196,6 +240,11 @@ export class Game {
     this.won = false;
     this.continued = false;
     this.history = [];
+    this.lastMovePlan = [];
+    this.lastSpawnIndex = null;
+    this.lastCombo = 0;
+    this.movesLeft = this.movesLimit;
+    this.timeLeft = this.timeLimit;
     let b = this.board;
     b = spawnRandom(b, this.rng).board;
     b = spawnRandom(b, this.rng).board;
@@ -213,12 +262,19 @@ export class Game {
       score: this.score,
       won: this.won,
       continued: this.continued,
+      movesLeft: this.movesLeft,
+      timeLeft: this.timeLeft,
     });
     if (this.history.length > 50) this.history.shift();
 
     this.lastMovePlan = res.plan;
+    this.lastCombo = res.merges;
     this.board = res.board;
     this.score += res.score;
+    // Combo bonus: multiple merges in one move pay a small bonus each.
+    if (this.lastCombo >= 2) {
+      this.score += (this.lastCombo - 1) * COMBO_BONUS;
+    }
     if (this.score > this.best) this.best = this.score;
 
     if (!this.won && hasReached(this.board, this.target)) {
@@ -233,8 +289,19 @@ export class Game {
       this.lastSpawnIndex = null;
     }
 
-    this.over = isGameOver(this.board);
+    if (this.mode === MODES.MOVES) {
+      this.movesLeft--;
+      if (this.movesLeft <= 0) this.over = true;
+    }
+    this.over = this.over || isGameOver(this.board);
     return true;
+  }
+
+  // Advance the clock (only meaningful in TIME mode).
+  tick(ms) {
+    if (this.mode !== MODES.TIME || this.over || this.won) return;
+    this.timeLeft = Math.max(0, this.timeLeft - ms);
+    if (this.timeLeft <= 0) this.over = true;
   }
 
   // User chose to keep playing after reaching the target tile.
@@ -250,9 +317,12 @@ export class Game {
     this.score = snap.score;
     this.won = snap.won;
     this.continued = snap.continued;
+    this.movesLeft = snap.movesLeft ?? this.movesLeft;
+    this.timeLeft = snap.timeLeft ?? this.timeLeft;
     this.over = isGameOver(this.board);
     this.lastMovePlan = [];
     this.lastSpawnIndex = null;
+    this.lastCombo = 0;
     return true;
   }
 
@@ -266,6 +336,12 @@ export class Game {
       rows: this.rows,
       cols: this.cols,
       target: this.target,
+      mode: this.mode,
+      movesLimit: this.movesLimit,
+      movesLeft: this.movesLeft,
+      timeLimit: this.timeLimit,
+      timeLeft: this.timeLeft,
+      dailyKey: this.dailyKey,
       cells: this.board.cells,
       score: this.score,
       best: this.best,
@@ -281,6 +357,10 @@ export class Game {
       rows: data.rows,
       cols: data.cols,
       target: data.target || DEFAULT_TARGET,
+      mode: data.mode || MODES.CLASSIC,
+      movesLimit: data.movesLimit || DEFAULT_MOVES_LIMIT,
+      timeLimit: data.timeLimit || DEFAULT_TIME_LIMIT,
+      dailyKey: data.dailyKey || null,
     });
     g.board = { rows: data.rows, cols: data.cols, cells: Array.isArray(data.cells) ? data.cells : [] };
     g.score = data.score || 0;
@@ -289,6 +369,8 @@ export class Game {
     g.won = !!data.won;
     g.continued = !!data.continued;
     g.history = Array.isArray(data.history) ? data.history : [];
+    if (typeof data.movesLeft === 'number') g.movesLeft = data.movesLeft;
+    if (typeof data.timeLeft === 'number') g.timeLeft = data.timeLeft;
     return g;
   }
 }

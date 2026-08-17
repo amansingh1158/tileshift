@@ -1,13 +1,13 @@
 {
-  "name": "2048 Puzzle",
-  "short_name": "2048",
-  "description": "Slide and merge tiles to reach 2048. Play offline.",
+  "name": "TileShift",
+  "short_name": "TileShift",
+  "description": "A fresh slide-and-merge puzzle with Classic, Time, Moves and Daily modes. Play offline.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#faf8ef",
-  "theme_color": "#faf8ef",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

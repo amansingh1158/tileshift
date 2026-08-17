@@ -1,4 +1,4 @@
-const CACHE = 't2048-v1';
+const CACHE = 'tileshift-v3';
 const ASSETS = [
   './',
   './index.html',

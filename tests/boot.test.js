@@ -51,3 +51,27 @@ test('boot: undo button exists and new game button works', () => {
   ng.click();
   assert.ok(document.querySelectorAll('.tile').length >= 2);
 });
+
+test('boot: switching modes updates the HUD extras', () => {
+  const tabs = document.querySelectorAll('#mode-tabs button');
+  assert.equal(tabs.length, 4, 'four modes');
+
+  const find = (label) => [...tabs].find((b) => b.textContent === label);
+  const hud = document.getElementById('hud-extra');
+
+  find('Time').click();
+  assert.ok(hud.querySelector('.timer-bar'), 'time mode shows timer bar');
+  find('Moves').click();
+  assert.ok(hud.querySelector('#moves-left'), 'moves mode shows moves chip');
+  assert.ok(document.getElementById('moves-left').textContent, 'moves counter present');
+  find('Daily').click();
+  assert.ok(hud.querySelector('.daily-chip'), 'daily mode shows daily chip');
+  assert.ok(document.getElementById('board-size').disabled, 'board size locked in daily mode');
+  find('Classic').click();
+  assert.ok(hud.querySelector('.chip'), 'classic mode shows target chip');
+  assert.ok(!document.getElementById('board-size').disabled, 'board size re-enabled');
+
+  // undo must work after the mode switches (new games each time)
+  document.getElementById('undo').click();
+  assert.ok(true);
+});

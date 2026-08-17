@@ -5,8 +5,20 @@ const PAD = 8;
 const MOVE_MS = 140;
 
 export const THEMES = {
+  tileshift: {
+    label: 'TileShift',
+    body: { bg: '#0f172a', text: '#e2e8f0', muted: '#94a3b8' },
+    boardBg: '#1e293b',
+    emptyCell: '#334155',
+    palette: {
+      2: '#0e7490', 4: '#0d9488', 8: '#0891b2', 16: '#06b6d4',
+      32: '#22d3ee', 64: '#38bdf8', 128: '#818cf8', 256: '#a78bfa',
+      512: '#c084fc', 1024: '#e879f9', 2048: '#fbbf24',
+    },
+    textMap: { 32: '#083344', 64: '#082f49', 2048: '#78350f' },
+  },
   classic: {
-    label: 'Classic',
+    label: 'Retro',
     body: { bg: '#faf8ef', text: '#776e65', muted: '#8f8781' },
     boardBg: '#bbada0',
     emptyCell: '#cdc1b4',
@@ -68,7 +80,7 @@ function applyThemeCss(name) {
 export class BoardView {
   constructor(rootEl) {
     this.root = rootEl;
-    this.theme = 'classic';
+    this.theme = 'tileshift';
     this.rows = 4;
     this.cols = 4;
     this.size = 0;
