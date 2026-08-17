@@ -31,6 +31,10 @@ export function getPlayerId() {
   return localStorage.getItem(PLAYER_KEY) || '';
 }
 
+export function setPlayerId(uid) {
+  localStorage.setItem(PLAYER_KEY, uid);
+}
+
 async function getToken() {
   const cfg = getFirebaseConfig();
   let cached = null;
@@ -66,6 +70,7 @@ async function postScore(cfg, token, mode, entry) {
       fields: {
         mode: { stringValue: mode },
         player: { stringValue: entry.player },
+        name: { stringValue: entry.name || '' },
         score: { integerValue: String(entry.score) },
         tile: { integerValue: String(entry.tile) },
         at: { timestampValue: entry.at },
@@ -81,10 +86,11 @@ function enqueue(mode, entry) {
   writeQueue(q);
 }
 
-export async function submitScore(mode, { score, tile }) {
+export async function submitScore(mode, { score, tile, name }) {
   const cfg = getFirebaseConfig();
   const entry = () => ({
     player: getPlayerId() || 'guest',
+    name: name || '',
     score,
     tile,
     at: new Date().toISOString(),
@@ -156,6 +162,7 @@ export async function fetchTopScores(mode, limit = 10) {
     const f = item.document.fields || {};
     rows.push({
       player: f.player?.stringValue || 'unknown',
+      name: f.name?.stringValue || '',
       score: Number(f.score?.integerValue || 0),
       tile: Number(f.tile?.integerValue || 0),
       at: f.at?.timestampValue || '',

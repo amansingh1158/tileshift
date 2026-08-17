@@ -22,11 +22,11 @@ beforeEach(() => {
   store.clear();
   fetchLog = [];
   fetchImpl = null;
-  global.window = {};
+  global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
 });
 
 test('without config, submitScore queues locally and never fetches', async () => {
-  global.window = {};
+  global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
   await lb.submitScore('classic', { score: 42, tile: 8 });
   assert.equal(lb.queueLength(), 1, 'score queued');
   assert.equal(fetchLog.length, 0, 'no network calls');
@@ -102,7 +102,7 @@ test('fetchTopScores parses runQuery results in order', async () => {
 });
 
 test('top scores also work without any config (offline, empty list)', async () => {
-  global.window = {};
+  global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
   const rows = await lb.fetchTopScores('classic', 10);
   assert.deepEqual(rows, []);
 });

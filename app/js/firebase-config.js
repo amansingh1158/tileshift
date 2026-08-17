@@ -8,17 +8,13 @@
 // The game works fully offline without this — the leaderboard just stays
 // disabled and scores are not submitted.
 export const firebaseConfig = {
-  apiKey: '',
-  projectId: '',
+  apiKey: 'AIzaSyCwtXi6ENesA1Tug8tBqm5kRQETFSvkwsI',
+  projectId: 'tileshift-6dba1',
 };
 
 // Runtime override hook (used by tests and custom builds).
 export function getFirebaseConfig() {
-  if (
-    typeof window !== 'undefined' &&
-    window.TILESHIFT_FIREBASE &&
-    window.TILESHIFT_FIREBASE.apiKey
-  ) {
+  if (typeof window !== 'undefined' && window.TILESHIFT_FIREBASE) {
     return window.TILESHIFT_FIREBASE;
   }
   return firebaseConfig;
