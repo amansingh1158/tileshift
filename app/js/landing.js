@@ -1,5 +1,4 @@
 import { isConfigured } from './firebase-config.js';
-import { getIdentity, isNative, signInWithFacebook, signOutFacebook } from './fb-auth.js';
 import { fetchTopScores, flushQueue, getPlayerId } from './leaderboard.js';
 import { showBanner } from './ads.js';
 
@@ -82,43 +81,6 @@ function buildTabs() {
     tabsEl.appendChild(b);
   }
   tabsEl.firstChild.classList.add('active');
-}
-
-// ---- Facebook sign-in ----
-const fbArea = document.getElementById('fb-area');
-const fbBtn = document.getElementById('fb-btn');
-const fbStatus = document.getElementById('fb-status');
-
-function renderFbArea() {
-  const identity = getIdentity();
-  if (identity && identity.name) {
-    fbBtn.textContent = 'Sign out';
-    fbBtn.onclick = async () => {
-      await signOutFacebook();
-      renderFbArea();
-      render();
-    };
-    fbStatus.textContent = `Signed in as ${identity.name}`;
-  } else {
-    fbBtn.textContent = 'Sign in with Facebook';
-    fbBtn.onclick = async () => {
-      fbStatus.textContent = 'Connecting\u2026';
-      try {
-        await signInWithFacebook();
-        fbStatus.textContent = `Signed in as ${getIdentity().name || 'Facebook user'}`;
-        renderFbArea();
-        render();
-      } catch (e) {
-        fbStatus.textContent = 'Sign-in failed. Check Facebook setup and try again.';
-      }
-    };
-    fbStatus.textContent = '';
-  }
-}
-
-if (isNative()) {
-  fbArea.classList.remove('hidden');
-  renderFbArea();
 }
 
 buildTabs();

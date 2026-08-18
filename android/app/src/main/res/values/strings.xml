@@ -1,8 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-        <string name="facebook_app_id">1373392884241024</string>
-    <string name="facebook_client_token">1373392884241024</string>
-<string name="app_name">TileShift</string>
+    <string name="app_name">TileShift</string>
     <string name="title_activity_main">TileShift</string>
     <string name="package_name">com.tileshift.game</string>
     <string name="custom_url_scheme">com.tileshift.game</string>
