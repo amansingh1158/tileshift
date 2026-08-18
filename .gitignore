@@ -19,4 +19,5 @@ google-services.json
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/~/.config/opencode/vendor/
+.vscode/
+~/.config/opencode/
