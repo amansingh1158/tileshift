@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { width: 1024px; height: 500px; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+.feature {
+  width: 1024px;
+  height: 500px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 80px;
+  position: relative;
+  overflow: hidden;
+}
+.feature::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(34,211,238,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.feature::after {
+  content: '';
+  position: absolute;
+  bottom: -150px;
+  left: -50px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(168,85,247,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.left { position: relative; z-index: 1; max-width: 550px; }
+.title {
+  font-size: 72px;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: -1px;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.title span { color: #22d3ee; }
+.tagline {
+  font-size: 24px;
+  color: #94a3b8;
+  font-weight: 400;
+  margin-bottom: 28px;
+}
+.modes {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mode {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+.mode.teal { background: rgba(34,211,238,0.2); color: #22d3ee; }
+.mode.rose { background: rgba(244,63,94,0.2); color: #fb7185; }
+.mode.violet { background: rgba(168,85,247,0.2); color: #c084fc; }
+.mode.amber { background: rgba(251,191,36,0.2); color: #fbbf24; }
+.right { position: relative; z-index: 1; }
+.board {
+  width: 260px;
+  height: 260px;
+  background: #1e293b;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(34,211,238,0.1);
+}
+.tile {
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  font-size: 22px;
+}
+.t2 { background: #334155; }
+.t4 { background: #3b5168; }
+.t8 { background: #22d3ee; color: #0f172a; }
+.t16 { background: #f97316; }
+.t32 { background: #ef4444; }
+.t64 { background: #f59e0b; }
+.t128 { background: #a855f7; }
+.t256 { background: #ec4899; }
+.t512 { background: #22d3ee; }
+</style>
+</head>
+<body>
+<div class="feature">
+  <div class="left">
+    <div class="title">Tile<span>Shift</span></div>
+    <div class="tagline">A fresh slide &amp; merge puzzle</div>
+    <div class="modes">
+      <div class="mode teal">Classic</div>
+      <div class="mode rose">Time Attack</div>
+      <div class="mode violet">Moves</div>
+      <div class="mode amber">Daily</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="board">
+      <div class="tile t2"></div>
+      <div class="tile t4"></div>
+      <div class="tile t8">8</div>
+      <div class="tile t2"></div>
+      <div class="tile t16">16</div>
+      <div class="tile t64">64</div>
+      <div class="tile t32">32</div>
+      <div class="tile t4"></div>
+      <div class="tile t2"></div>
+      <div class="tile t128">128</div>
+      <div class="tile t256">256</div>
+      <div class="tile t8">8</div>
+      <div class="tile t512">512</div>
+      <div class="tile t2"></div>
+      <div class="tile t16">16</div>
+      <div class="tile t4"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

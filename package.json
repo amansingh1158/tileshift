@@ -28,6 +28,7 @@
     "@capacitor/haptics": "^8.0.2"
   },
   "devDependencies": {
+    "canvas": "^3.2.3",
     "jsdom": "^29.1.1"
   }
 }

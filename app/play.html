@@ -39,6 +39,7 @@
       <button id="undo" disabled>Undo</button>
       <button id="new-game">New Game</button>
       <button id="stats-btn">Stats</button>
+      <button id="howto-btn" class="icon-btn" aria-label="How to play">?</button>
     </div>
 
     <div class="board-wrap">
@@ -79,6 +80,16 @@
       </div>
       <p class="score-note">Best score: <span id="stat-best">0</span></p>
       <button id="stats-close">Close</button>
+    </div>
+  </div>
+
+  <div id="tour" class="tour hidden" role="dialog" aria-label="Feature tour">
+    <div id="tour-ring" class="tour-ring"></div>
+    <div id="tour-card" class="tour-card">
+      <div id="tour-step" class="tour-step"></div>
+      <h3 id="tour-title" class="tour-title"></h3>
+      <p id="tour-desc" class="tour-desc"></p>
+      <button id="tour-next" class="tour-next">Next</button>
     </div>
   </div>
 

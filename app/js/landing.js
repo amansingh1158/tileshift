@@ -1,6 +1,7 @@
 import { isConfigured } from './firebase-config.js';
 import { fetchTopScores, flushQueue, getPlayerId } from './leaderboard.js';
 import { showBanner } from './ads.js';
+import { getPlayGamesName, playGamesAvailable, playGamesAuthenticated, playGamesSignIn, setPlayGamesName } from './play-games.js';
 
 const MODES = [
   { id: 'classic', label: 'Classic' },
@@ -12,11 +13,13 @@ const MODES = [
 const tabsEl = document.getElementById('lb-tabs');
 const listEl = document.getElementById('lb-list');
 const statusEl = document.getElementById('lb-status');
+const pgAreaEl = document.getElementById('pg-signin');
+const pgBtnEl = document.getElementById('pg-signin-btn');
 let currentMode = 'classic';
 
 function playerLabel(row) {
   if (row.player === getPlayerId()) return 'You';
-  return row.name || `Player #${row.player.slice(-4)}`;
+  return row.name || getPlayGamesName() || `Player #${row.player.slice(-4)}`;
 }
 
 function renderNote(text) {
@@ -83,7 +86,31 @@ function buildTabs() {
   tabsEl.firstChild.classList.add('active');
 }
 
+async function initPlayGames() {
+  if (!pgAreaEl || !pgBtnEl) return;
+  try {
+    const available = await playGamesAvailable();
+    if (!available) return;
+    if (await playGamesAuthenticated()) return;
+    pgAreaEl.hidden = false;
+    pgBtnEl.addEventListener('click', async () => {
+      const res = await playGamesSignIn();
+      if (res && res.signedIn && res.displayName) {
+        setPlayGamesName(res.displayName);
+        pgAreaEl.hidden = true;
+        statusEl.textContent = `Signed in as ${res.displayName}`;
+        render();
+      } else {
+        statusEl.textContent = 'Play Games sign-in cancelled.';
+      }
+    });
+  } catch (e) {
+    // Play Games unavailable — leave button hidden and run unchanged
+  }
+}
+
 buildTabs();
 render();
 window.addEventListener('online', render);
 showBanner();
+initPlayGames();

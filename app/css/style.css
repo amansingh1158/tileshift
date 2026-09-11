@@ -141,6 +141,15 @@ select:disabled {
   cursor: default;
 }
 
+.icon-btn {
+  width: 36px;
+  padding: 8px 0;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .landing {
   justify-content: center;
   gap: 28px;
@@ -322,7 +331,7 @@ select:disabled {
   margin: 8px 0 0;
 }
 
-.fb-area {
+.pg-signin {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -330,17 +339,28 @@ select:disabled {
   margin-top: 14px;
 }
 
-#fb-btn {
-  background: #1877f2;
+.pg-signin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  color: #333;
   font-weight: 600;
   padding: 10px 20px;
+  border: 1px solid var(--border, #d8d8d8);
 }
 
-#fb-btn:active {
-  background: #0e5fd8;
+.pg-signin-btn:active {
+  background: var(--muted, #eee);
 }
 
-.fb-status {
+.pg-signin-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.pg-signin-name {
   font-size: 12px;
   color: var(--muted);
 }
@@ -457,6 +477,64 @@ select:disabled {
 .modal-card h2 {
   margin: 0 0 16px;
   font-size: 24px;
+}
+
+/* ---- Feature tour ---- */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  cursor: pointer;
+}
+
+.tour.hidden {
+  display: none;
+}
+
+.tour-ring {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.78);
+  z-index: 1;
+  transition: top 0.28s ease, left 0.28s ease, width 0.28s ease, height 0.28s ease;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 2;
+  width: min(320px, 86vw);
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 18px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.tour-step {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.tour-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.tour-desc {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.tour-next {
+  width: 100%;
 }
 
 .stat-grid {

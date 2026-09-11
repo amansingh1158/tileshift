@@ -3,6 +3,7 @@ import { Haptics, ImpactStyle, NotificationType } from '../vendor/@capacitor/hap
 import { COMBO_BONUS, DIRECTIONS, MODES, Game, highestTile } from './engine.js';
 import { isConfigured as leaderboardConfigured } from './firebase-config.js';
 import { submitScore } from './leaderboard.js';
+import { getPlayGamesName } from './play-games.js';
 import {
   bestScoreFor,
   loadSettings,
@@ -174,7 +175,7 @@ function recordGameEnd() {
     submitScore(game.mode, {
       score: game.score,
       tile: stats.bestTile,
-      name: '',
+      name: getPlayGamesName(),
     }).catch(() => {});
   }
 }
@@ -313,6 +314,115 @@ $('#stats-modal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) $('#stats-modal').classList.add('hidden');
 });
 
+// ---- Feature tour ----
+const TOUR_KEY = 'tileshift:tour-seen';
+const tourEl = $('#tour');
+const tourRing = $('#tour-ring');
+const tourCard = $('#tour-card');
+const tourStep = $('#tour-step');
+const tourTitle = $('#tour-title');
+const tourDesc = $('#tour-desc');
+const tourNext = $('#tour-next');
+
+const TOUR_STEPS = [
+  {
+    target: () => $('#board'),
+    title: 'Slide & merge',
+    desc: 'Swipe or drag to slide every tile. Equal numbers merge together — reach the target tile to win!',
+  },
+  {
+    target: () => $('#board-size'),
+    title: 'Grid size',
+    desc: 'Change the board shape — from the classic 4×4 up to bigger and stretched grids.',
+  },
+  {
+    target: () => $('#theme'),
+    title: 'Themes',
+    desc: 'Switch the whole look: TileShift, Retro, Dark, Ocean or Candy.',
+  },
+  {
+    target: () => $('#undo'),
+    title: 'Undo',
+    desc: 'Made a wrong swipe? Step back one move.',
+  },
+  {
+    target: () => $('#new-game'),
+    title: 'New Game',
+    desc: 'Restart the current board at any time.',
+  },
+  {
+    target: () => $('#stats-btn'),
+    title: 'Stats',
+    desc: 'See your lifetime games, moves, merges and best tile. Tap to finish the tour!',
+  },
+];
+
+let tourIndex = 0;
+
+function positionTourCard(targetRect) {
+  const gap = 14;
+  const cardH = tourCard.offsetHeight || 120;
+  const cardW = tourCard.offsetWidth || 320;
+  // Prefer below the highlighted control.
+  let top = targetRect.bottom + gap;
+  if (top + cardH > window.innerHeight - 12) top = Math.max(12, targetRect.top - gap - cardH);
+  if (top + cardH > window.innerHeight - 12) top = window.innerHeight - cardH - 12;
+  const left = Math.max(12, Math.min((window.innerWidth - cardW) / 2, window.innerWidth - cardW - 12));
+  tourCard.style.top = `${Math.max(12, top)}px`;
+  tourCard.style.left = `${left}px`;
+}
+
+function showTourStep(i) {
+  tourIndex = i;
+  const step = TOUR_STEPS[i];
+  const el = step.target();
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  tourRing.style.top = `${r.top - 6}px`;
+  tourRing.style.left = `${r.left - 6}px`;
+  tourRing.style.width = `${r.width + 12}px`;
+  tourRing.style.height = `${r.height + 12}px`;
+  tourStep.textContent = `${i + 1} / ${TOUR_STEPS.length}`;
+  tourTitle.textContent = step.title;
+  tourDesc.textContent = step.desc;
+  tourNext.textContent = i === TOUR_STEPS.length - 1 ? 'Got it' : 'Next';
+  positionTourCard(r);
+}
+
+function startTour() {
+  showTourStep(0);
+  tourEl.classList.remove('hidden');
+}
+
+function endTour() {
+  tourEl.classList.add('hidden');
+  try {
+    localStorage.setItem(TOUR_KEY, '1');
+  } catch (e) {
+    // ignore storage errors
+  }
+}
+
+tourEl.addEventListener('click', () => {
+  if (tourIndex >= TOUR_STEPS.length - 1) {
+    endTour();
+    return;
+  }
+  showTourStep(tourIndex + 1);
+});
+
+$('#howto-btn').addEventListener('click', startTour);
+
+function maybeShowTour() {
+  try {
+    if (localStorage.getItem(TOUR_KEY) === '1') return;
+  } catch (e) {
+    return;
+  }
+  const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+  raf(() => setTimeout(startTour, 250));
+}
+
 // ---- Input: keyboard ----
 const KEY_DIRS = {
   ArrowUp: DIRECTIONS.UP,
@@ -445,3 +555,4 @@ renderHudExtra();
 updateHud();
 if (game.mode === MODES.TIME) startTimer();
 showBanner();
+maybeShowTour();
