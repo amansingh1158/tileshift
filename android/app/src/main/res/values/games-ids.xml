@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Google Play Games Services IDs -->
+<resources>
+    <!-- App ID from Play Console: Grow -> Play Games Services -> Configuration -->
+    <string name="app_id">466433852294</string>
+</resources>
