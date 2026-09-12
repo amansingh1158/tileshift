@@ -21,28 +21,42 @@ export function isOnline() {
   }
 }
 
-const PROBE_URL = 'https://firestore.googleapis.com/';
+const PROBE_URLS = [
+  'https://firestore.googleapis.com/',
+  'https://www.google.com/generate_204',
+  'https://identitytoolkit.googleapis.com/',
+];
 
-// Returns true when real network reachability is confirmed (any HTTP response
-// counts — even 4xx/5xx proves a route exists). Fails fast on dead networks.
-export async function hasInternet(timeoutMs = 4000) {
+// Probes each endpoint with mode:'no-cors' so CORS headers can never turn a
+// reachable network into a false "offline" — the request only finishes if a
+// server actually responded.
+export async function probeReachable(timeoutMs = 6000) {
+  const perUrl = Math.max(1000, Math.floor(timeoutMs / PROBE_URLS.length));
+  for (const url of PROBE_URLS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), perUrl);
+    try {
+      await fetch(`${url}?probe=${Date.now()}`, {
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      return true; // opaque or passed response => a server answered
+    } catch (e) {
+      // aborted or network failure — try next endpoint
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return false;
+}
+
+// Returns true when the network is genuinely reachable.
+export async function hasInternet(timeoutMs = 6000) {
   if (isTestEnv()) return isOnline();
   if (typeof fetch === 'undefined') return isOnline();
   if (!isOnline()) return false;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${PROBE_URL}?probe=${Date.now()}`, {
-      mode: 'cors',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    return true;
-  } catch (e) {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
+  return probeReachable(timeoutMs);
 }
 
 const OVERLAY_ID = 'offline-overlay';
