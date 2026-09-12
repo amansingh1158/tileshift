@@ -40,11 +40,7 @@
       <button id="new-game">New Game</button>
       <button id="stats-btn">Stats</button>
       <button id="howto-btn" class="icon-btn" aria-label="How to play">?</button>
-      <button id="toggle-sound" class="icon-btn" aria-label="Toggle sound" title="Sound">&#x1F50A;</button>
-      <button id="toggle-vibration" class="icon-btn" aria-label="Toggle vibration" title="Vibration">&#x1F4F3;</button>
-      <button id="profile-btn" class="icon-btn" aria-label="Player profile" title="Profile">
-        <span id="profile-btn-name" class="profile-btn-name">P</span>
-      </button>
+      <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">&#x2699;</button>
     </div>
 
     <div class="board-wrap">
@@ -88,17 +84,28 @@
     </div>
   </div>
 
-  <div id="profile-modal" class="modal hidden" role="dialog" aria-label="Player profile">
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-label="Settings">
     <div class="modal-card">
-      <h2>Player Profile</h2>
-      <p class="score-note" id="profile-current">Signed in as Player</p>
-      <input id="profile-name-input" type="text" maxlength="20" placeholder="New name" autocomplete="off" />
-      <p id="profile-msg" class="overlay-msg"></p>
-      <div class="actions">
-        <button id="profile-save">Save</button>
-        <button id="profile-close">Close</button>
+      <h2>Settings</h2>
+      <div class="settings-row">
+        <span class="settings-label">Sound</span>
+        <button id="settings-sound" class="toggle-btn on" type="button" aria-label="Toggle sound">ON</button>
       </div>
-      <button id="profile-signout" class="btn ghost small" hidden>Sign out</button>
+      <div class="settings-row">
+        <span class="settings-label">Vibration</span>
+        <button id="settings-vibration" class="toggle-btn on" type="button" aria-label="Toggle vibration">ON</button>
+      </div>
+      <hr class="settings-divider" />
+      <div class="settings-row">
+        <label class="settings-label" for="settings-name-input">Player name</label>
+      </div>
+      <input id="settings-name-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
+      <p id="settings-msg" class="overlay-msg"></p>
+      <div class="actions">
+        <button id="settings-save">Save</button>
+        <button id="settings-close">Close</button>
+      </div>
+      <button id="settings-signout" class="btn ghost small" hidden>Sign out</button>
     </div>
   </div>
 

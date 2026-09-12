@@ -1,4 +1,4 @@
-const CACHE = 'tileshift-v13';
+const CACHE = 'tileshift-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const ASSETS = [
   './js/ads.js',
   './js/ads-config.js',
   './js/play-games.js',
+  './js/connectivity.js',
   './js/sfx.js',
   './js/profile.js',
   './vendor/@capacitor/core/index.js',

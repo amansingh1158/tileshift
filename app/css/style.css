@@ -892,6 +892,58 @@ button.ghost.small {
   border-color: rgba(34, 211, 238, 0.4);
 }
 
+/* ---- Settings modal ---- */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.settings-label {
+  font-weight: 600;
+}
+
+.settings-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 12px 0;
+}
+
+.modal-card input[type="text"] {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--cell-bg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-card input[type="text"]::placeholder {
+  color: var(--muted);
+}
+
+.toggle-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--cell-bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toggle-btn.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(34, 211, 238, 0.4);
+}
+
 @media (max-width: 380px) {
   .brand h1 {
     font-size: 32px;

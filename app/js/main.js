@@ -561,97 +561,89 @@ function buildThemeOptions() {
   sel.value = settings.theme;
 }
 
-// ---- Sound & vibration toggles (icon buttons) ----
-function syncToggleButtons() {
-  const s = $('#toggle-sound');
-  const v = $('#toggle-vibration');
-  if (s) s.classList.toggle('on', settings.sound);
-  if (v) v.classList.toggle('on', settings.vibration);
-}
+// ---- Settings modal (play page) ----
+const settingsModal = $('#settings-modal');
+const settingsNameInput = $('#settings-name-input');
+const settingsMsg = $('#settings-msg');
+const settingsSaveBtn = $('#settings-save');
+const settingsCloseBtn = $('#settings-close');
+const settingsSignoutBtn = $('#settings-signout');
+const settingsBtn = $('#settings-btn');
+const settingsSoundBtn = $('#settings-sound');
+const settingsVibrationBtn = $('#settings-vibration');
 
-function bindSettingsButtons() {
-  const s = $('#toggle-sound');
-  const v = $('#toggle-vibration');
-  if (s) {
-    s.addEventListener('click', () => {
-      settings.sound = !settings.sound;
-      saveSettings(settings);
-      syncToggleButtons();
-    });
+function syncSettingsToggles() {
+  if (settingsSoundBtn) {
+    settingsSoundBtn.textContent = settings.sound ? 'ON' : 'OFF';
+    settingsSoundBtn.classList.toggle('on', settings.sound);
   }
-  if (v) {
-    v.addEventListener('click', () => {
-      settings.vibration = !settings.vibration;
-      saveSettings(settings);
-      syncToggleButtons();
-    });
+  if (settingsVibrationBtn) {
+    settingsVibrationBtn.textContent = settings.vibration ? 'ON' : 'OFF';
+    settingsVibrationBtn.classList.toggle('on', settings.vibration);
   }
 }
 
-// ---- Profile modal (play page) ----
-const profileModal = $('#profile-modal');
-const profileNameInput = $('#profile-name-input');
-const profileMsg = $('#profile-msg');
-const profileCurrent = $('#profile-current');
-const profileSaveBtn = $('#profile-save');
-const profileCloseBtn = $('#profile-close');
-const profileSignoutBtn = $('#profile-signout');
-const profileBtn = $('#profile-btn');
-const profileBtnName = $('#profile-btn-name');
-
-function refreshProfileBtn() {
-  if (!profileBtnName) return;
-  profileBtnName.textContent = getDisplayName() || 'P';
+function openSettings() {
+  settingsNameInput.value = getDisplayName();
+  settingsMsg.textContent = '';
+  settingsSignoutBtn.hidden = !hasProfile();
+  syncSettingsToggles();
+  settingsModal.classList.remove('hidden');
 }
 
-function openProfile() {
-  profileNameInput.value = getDisplayName();
-  profileCurrent.textContent = hasProfile() ? `Signed in as ${getDisplayName()}` : 'Not signed in';
-  profileMsg.textContent = '';
-  profileSignoutBtn.hidden = !hasProfile();
-  profileModal.classList.remove('hidden');
+function closeSettings() {
+  settingsModal.classList.add('hidden');
 }
 
-function closeProfile() {
-  profileModal.classList.add('hidden');
-}
-
-async function saveProfile() {
-  profileMsg.textContent = '';
-  const v = validateName(profileNameInput.value);
+async function saveSettingsModal() {
+  settingsMsg.textContent = '';
+  // Save name
+  const v = validateName(settingsNameInput.value);
   if (!v.ok) {
-    profileMsg.textContent = v.reason;
+    settingsMsg.textContent = v.reason;
     return;
   }
   const res = await claimName(v.name);
   if (!res.ok) {
-    profileMsg.textContent = res.reason;
+    settingsMsg.textContent = res.reason;
     return;
   }
-  profileMsg.textContent = res.local ? 'Saved on this device (offline name).' : `Name "${v.name}" is yours!`;
-  refreshProfileBtn();
-  setTimeout(closeProfile, 700);
+  settingsMsg.textContent = res.local ? 'Saved on this device (offline name).' : `Name "${v.name}" is yours!`;
+  setTimeout(closeSettings, 700);
 }
 
-async function signOutProfile() {
+async function signOutSettings() {
   setDisplayNameLocal('');
   try {
     await playGamesSignOut();
   } catch (e) {
     // ignore
   }
-  refreshProfileBtn();
-  closeProfile();
+  closeSettings();
 }
 
-function bindProfileModal() {
-  if (profileBtn) profileBtn.addEventListener('click', openProfile);
-  if (profileCloseBtn) profileCloseBtn.addEventListener('click', closeProfile);
-  if (profileSaveBtn) profileSaveBtn.addEventListener('click', saveProfile);
-  if (profileSignoutBtn) profileSignoutBtn.addEventListener('click', signOutProfile);
-  if (profileModal) {
-    profileModal.addEventListener('click', (e) => {
-      if (e.target === profileModal) closeProfile();
+function bindSettingsModal() {
+  if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+  if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', closeSettings);
+  if (settingsSaveBtn) settingsSaveBtn.addEventListener('click', saveSettingsModal);
+  if (settingsSignoutBtn) settingsSignoutBtn.addEventListener('click', signOutSettings);
+  if (settingsSoundBtn) {
+    settingsSoundBtn.addEventListener('click', () => {
+      settings.sound = !settings.sound;
+      saveSettings(settings);
+      syncSettingsToggles();
+    });
+  }
+  if (settingsVibrationBtn) {
+    settingsVibrationBtn.addEventListener('click', () => {
+      settings.vibration = !settings.vibration;
+      saveSettings(settings);
+      syncSettingsToggles();
+    });
+  }
+  if (settingsModal) {
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeSettings();
     });
   }
 }
@@ -661,9 +653,8 @@ buildSizeOptions();
 buildThemeOptions();
 $('#board-size').disabled = settings.mode === MODES.DAILY;
 
-bindSettingsButtons();
-bindProfileModal();
-syncToggleButtons();
+bindSettingsModal();
+syncSettingsToggles();
 
 game = createGame();
 const saved = loadState(game);
@@ -687,11 +678,7 @@ if (game.won && !game.continued) showWin();
 else if (game.over) showGameOver();
 renderHudExtra();
 updateHud();
-refreshProfileBtn();
 maybeShowTour();
 
 if (game.mode === MODES.TIME) startTimer();
 showBanner();
-playGamesAuthenticated().then((auth) => {
-  if (auth) refreshProfileBtn();
-});

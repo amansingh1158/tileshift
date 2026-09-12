@@ -111,11 +111,6 @@ function openProfile() {
   clearMsg(profileMsgEl);
   profileNameInputEl.value = getDisplayName();
   profileCurrentEl.textContent = hasProfile() ? `Signed in as ${getDisplayName()}` : 'Not signed in';
-  const st = loadSettings();
-  const sound = document.getElementById('toggle-sound');
-  const vib = document.getElementById('toggle-vibration');
-  if (sound) sound.checked = st.sound;
-  if (vib) vib.checked = st.vibration;
   profileSignoutEl.hidden = !((playGamesState && playGamesState.authenticated) || hasProfile());
   profileModalEl.classList.remove('hidden');
 }
@@ -136,11 +131,6 @@ async function saveProfile() {
     showError(profileMsgEl, res.reason);
     return;
   }
-  const sound = document.getElementById('toggle-sound');
-  const vib = document.getElementById('toggle-vibration');
-  if (sound) settings.sound = sound.checked;
-  if (vib) settings.vibration = vib.checked;
-  saveSettings(settings);
   profileMsgEl.textContent = res.local ? 'Saved on this device (offline name).' : `Name "${v.name}" is yours!`;
   closeProfile();
   refreshUserChip();

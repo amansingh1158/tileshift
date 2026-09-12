@@ -7,6 +7,13 @@ const PLAYER_KEY = 'tileshift:fb-player';
 const QUEUE_KEY = 'tileshift:fb-queue';
 const IDENTITY_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 
+function withTimeout(promise, ms = 8000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('fetch timeout')), ms)),
+  ]);
+}
+
 export function firestoreRoot(projectId) {
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 }
@@ -44,11 +51,11 @@ export async function getToken() {
     // ignore
   }
   if (cached && cached.exp > Date.now() + 60000) return cached.idToken;
-  const res = await fetch(`${IDENTITY_ENDPOINT}?key=${cfg.apiKey}`, {
+  const res = await withTimeout(fetch(`${IDENTITY_ENDPOINT}?key=${cfg.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ returnSecureToken: true }),
-  });
+  }));
   if (!res.ok) throw new Error(`anonymous auth failed (${res.status})`);
   const data = await res.json();
   localStorage.setItem(PLAYER_KEY, data.localId || '');
@@ -63,7 +70,7 @@ export async function getToken() {
 }
 
 async function postScore(cfg, token, mode, entry) {
-  const res = await fetch(`${firestoreRoot(cfg.projectId)}/scores`, {
+  const res = await withTimeout(fetch(`${firestoreRoot(cfg.projectId)}/scores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
@@ -76,7 +83,7 @@ async function postScore(cfg, token, mode, entry) {
         at: { timestampValue: entry.at },
       },
     }),
-  });
+  }));
   if (!res.ok) throw new Error(`score post failed (${res.status})`);
 }
 
@@ -136,7 +143,7 @@ export async function fetchTopScores(mode, limit = 10) {
   const cfg = getFirebaseConfig();
   if (!isConfigured()) return [];
   const token = await getToken();
-  const res = await fetch(`${firestoreRoot(cfg.projectId)}:runQuery`, {
+  const res = await withTimeout(fetch(`${firestoreRoot(cfg.projectId)}:runQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
@@ -152,7 +159,7 @@ export async function fetchTopScores(mode, limit = 10) {
         limit: 100,
       },
     }),
-  });
+  }));
   if (!res.ok) throw new Error(`query failed (${res.status})`);
   const data = await res.json();
   const rows = [];
