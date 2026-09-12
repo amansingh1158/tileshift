@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS = {
   cols: 4,
   theme: 'tileshift',
   mode: 'classic',
+  sound: true,
+  vibration: true,
 };
 
 export const DEFAULT_STATS = {

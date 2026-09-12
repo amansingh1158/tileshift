@@ -7,7 +7,7 @@ const PLAYER_KEY = 'tileshift:fb-player';
 const QUEUE_KEY = 'tileshift:fb-queue';
 const IDENTITY_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 
-function firestoreRoot(projectId) {
+export function firestoreRoot(projectId) {
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 }
 
@@ -35,7 +35,7 @@ export function setPlayerId(uid) {
   localStorage.setItem(PLAYER_KEY, uid);
 }
 
-async function getToken() {
+export async function getToken() {
   const cfg = getFirebaseConfig();
   let cached = null;
   try {

@@ -3,7 +3,9 @@ import { Haptics, ImpactStyle, NotificationType } from '../vendor/@capacitor/hap
 import { COMBO_BONUS, DIRECTIONS, MODES, Game, highestTile } from './engine.js';
 import { isConfigured as leaderboardConfigured } from './firebase-config.js';
 import { submitScore } from './leaderboard.js';
-import { getPlayGamesName } from './play-games.js';
+import { getDisplayName, hasProfile, validateName, claimName, setDisplayNameLocal } from './profile.js';
+import { playGamesAuthenticated, playGamesSignOut } from './play-games.js';
+import { playMerge, playMove, playWin, playLose, unlockAudio } from './sfx.js';
 import {
   bestScoreFor,
   loadSettings,
@@ -70,9 +72,9 @@ function createGame() {
   });
 }
 
-// ---- Haptics (Android only) ----
+// ---- Haptics + sounds (Android only / Web Audio) ----
 async function hapticImpact(style) {
-  if (!isNative) return;
+  if (!isNative || !settings.vibration) return;
   try {
     await Haptics.impact({ style });
   } catch (e) {
@@ -81,12 +83,32 @@ async function hapticImpact(style) {
 }
 
 async function hapticNotify(type) {
-  if (!isNative) return;
+  if (!isNative || !settings.vibration) return;
   try {
     await Haptics.notification({ type });
   } catch (e) {
     // ignore
   }
+}
+
+function sfxMove() {
+  if (!settings.sound) return;
+  playMove();
+}
+
+function sfxMerge() {
+  if (!settings.sound) return;
+  playMerge();
+}
+
+function sfxWin() {
+  if (!settings.sound) return;
+  playWin();
+}
+
+function sfxLose() {
+  if (!settings.sound) return;
+  playLose();
 }
 
 // ---- Mode from URL ----
@@ -154,6 +176,7 @@ function showWin() {
   $('#win-continue').classList.toggle('hidden', movesMode);
   $('#win-overlay').classList.remove('hidden');
   hapticNotify(NotificationType.Success);
+  sfxWin();
 }
 
 function showGameOver() {
@@ -164,6 +187,8 @@ function showGameOver() {
   $('#over-title').textContent = titles[game.mode] || 'Game Over';
   $('#over-score').textContent = game.score;
   $('#game-over-overlay').classList.remove('hidden');
+  hapticNotify(NotificationType.Warning);
+  sfxLose();
 }
 
 function recordGameEnd() {
@@ -175,7 +200,7 @@ function recordGameEnd() {
     submitScore(game.mode, {
       score: game.score,
       tile: stats.bestTile,
-      name: getPlayGamesName(),
+      name: getDisplayName(),
     }).catch(() => {});
   }
 }
@@ -241,7 +266,13 @@ function tryMove(dir) {
   boardView.applyMove(game, game.lastSpawnIndex);
   updateHud();
   saveState(game);
-  if (game.lastCombo >= 1) hapticImpact(game.lastCombo >= 3 ? ImpactStyle.Medium : ImpactStyle.Light);
+  hapticImpact(ImpactStyle.Light);
+  if (game.lastCombo >= 1) {
+    hapticImpact(game.lastCombo >= 3 ? ImpactStyle.Medium : ImpactStyle.Light);
+    sfxMerge();
+  } else {
+    sfxMove();
+  }
   if (game.lastCombo >= 2) showCombo(game.lastCombo, (game.lastCombo - 1) * COMBO_BONUS);
   checkEnd();
 }
@@ -315,7 +346,9 @@ $('#stats-modal').addEventListener('click', (e) => {
 });
 
 // ---- Feature tour ----
-const TOUR_KEY = 'tileshift:tour-seen';
+// Version-scoped key so even existing users see the updated tour once
+// when a new app version ships (this key changes with each tour revision).
+const TOUR_KEY = 'tileshift:tour-seen:2';
 const tourEl = $('#tour');
 const tourRing = $('#tour-ring');
 const tourCard = $('#tour-card');
@@ -440,6 +473,7 @@ const KEY_DIRS = {
 };
 
 window.addEventListener('keydown', (e) => {
+  if (settings.sound) unlockAudio();
   const dir = KEY_DIRS[e.key];
   if (dir) {
     e.preventDefault();
@@ -453,6 +487,7 @@ let ptrStart = null;
 const SWIPE_THRESHOLD = 20;
 
 boardEl.addEventListener('pointerdown', (e) => {
+  if (settings.sound) unlockAudio();
   ptrStart = { x: e.clientX, y: e.clientY };
   boardEl.setPointerCapture(e.pointerId);
 });
@@ -526,10 +561,109 @@ function buildThemeOptions() {
   sel.value = settings.theme;
 }
 
+// ---- Sound & vibration toggles (icon buttons) ----
+function syncToggleButtons() {
+  const s = $('#toggle-sound');
+  const v = $('#toggle-vibration');
+  if (s) s.classList.toggle('on', settings.sound);
+  if (v) v.classList.toggle('on', settings.vibration);
+}
+
+function bindSettingsButtons() {
+  const s = $('#toggle-sound');
+  const v = $('#toggle-vibration');
+  if (s) {
+    s.addEventListener('click', () => {
+      settings.sound = !settings.sound;
+      saveSettings(settings);
+      syncToggleButtons();
+    });
+  }
+  if (v) {
+    v.addEventListener('click', () => {
+      settings.vibration = !settings.vibration;
+      saveSettings(settings);
+      syncToggleButtons();
+    });
+  }
+}
+
+// ---- Profile modal (play page) ----
+const profileModal = $('#profile-modal');
+const profileNameInput = $('#profile-name-input');
+const profileMsg = $('#profile-msg');
+const profileCurrent = $('#profile-current');
+const profileSaveBtn = $('#profile-save');
+const profileCloseBtn = $('#profile-close');
+const profileSignoutBtn = $('#profile-signout');
+const profileBtn = $('#profile-btn');
+const profileBtnName = $('#profile-btn-name');
+
+function refreshProfileBtn() {
+  if (!profileBtnName) return;
+  profileBtnName.textContent = getDisplayName() || 'P';
+}
+
+function openProfile() {
+  profileNameInput.value = getDisplayName();
+  profileCurrent.textContent = hasProfile() ? `Signed in as ${getDisplayName()}` : 'Not signed in';
+  profileMsg.textContent = '';
+  profileSignoutBtn.hidden = !hasProfile();
+  profileModal.classList.remove('hidden');
+}
+
+function closeProfile() {
+  profileModal.classList.add('hidden');
+}
+
+async function saveProfile() {
+  profileMsg.textContent = '';
+  const v = validateName(profileNameInput.value);
+  if (!v.ok) {
+    profileMsg.textContent = v.reason;
+    return;
+  }
+  const res = await claimName(v.name);
+  if (!res.ok) {
+    profileMsg.textContent = res.reason;
+    return;
+  }
+  profileMsg.textContent = res.local ? 'Saved on this device (offline name).' : `Name "${v.name}" is yours!`;
+  refreshProfileBtn();
+  setTimeout(closeProfile, 700);
+}
+
+async function signOutProfile() {
+  setDisplayNameLocal('');
+  try {
+    await playGamesSignOut();
+  } catch (e) {
+    // ignore
+  }
+  refreshProfileBtn();
+  closeProfile();
+}
+
+function bindProfileModal() {
+  if (profileBtn) profileBtn.addEventListener('click', openProfile);
+  if (profileCloseBtn) profileCloseBtn.addEventListener('click', closeProfile);
+  if (profileSaveBtn) profileSaveBtn.addEventListener('click', saveProfile);
+  if (profileSignoutBtn) profileSignoutBtn.addEventListener('click', signOutProfile);
+  if (profileModal) {
+    profileModal.addEventListener('click', (e) => {
+      if (e.target === profileModal) closeProfile();
+    });
+  }
+}
+
 // ---- Boot ----
 buildSizeOptions();
 buildThemeOptions();
 $('#board-size').disabled = settings.mode === MODES.DAILY;
+
+bindSettingsButtons();
+bindProfileModal();
+syncToggleButtons();
 
 game = createGame();
 const saved = loadState(game);
@@ -553,6 +687,11 @@ if (game.won && !game.continued) showWin();
 else if (game.over) showGameOver();
 renderHudExtra();
 updateHud();
+refreshProfileBtn();
+maybeShowTour();
+
 if (game.mode === MODES.TIME) startTimer();
 showBanner();
-maybeShowTour();
+playGamesAuthenticated().then((auth) => {
+  if (auth) refreshProfileBtn();
+});

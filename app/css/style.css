@@ -706,6 +706,192 @@ body[data-dark] .overlay {
   min-height: 56px;
 }
 
+/* ---- Login / offline full-screen overlays ---- */
+.overlay-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.overlay-screen.hidden {
+  display: none;
+}
+
+.overlay-card {
+  width: min(360px, 92vw);
+  background: var(--board-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.overlay-card h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.overlay-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.overlay-msg {
+  margin: 4px 0 0;
+  font-size: 12px;
+  min-height: 16px;
+  color: var(--muted);
+}
+
+.overlay-msg.err {
+  color: #f87171;
+}
+
+.pg-signin-btn.full {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 16px;
+  font-size: 15px;
+}
+
+.login-name-row {
+  display: flex;
+  gap: 8px;
+}
+
+.overlay-card input[type="text"] {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--cell-bg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.overlay-card input[type="text"]::placeholder {
+  color: var(--muted);
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--muted);
+}
+
+.btn.ghost.small,
+button.ghost.small {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.profile-btn-name {
+  font-weight: 700;
+}
+
+/* ---- User chip (landing) ---- */
+.user-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--board-bg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 16px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.user-chip-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Settings toggles ---- */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.toggle-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--cell-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-row input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+.toggle-row input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+.toggle-row input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
+}
+
+.icon-btn#toggle-sound,
+.icon-btn#toggle-vibration {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.icon-btn#toggle-sound.on,
+.icon-btn#toggle-vibration.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(34, 211, 238, 0.4);
+}
+
 @media (max-width: 380px) {
   .brand h1 {
     font-size: 32px;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
-  <meta name="description" content="TileShift — a fresh take on the slide-and-merge puzzle. Classic, Time Attack, Moves and Daily modes. Play offline." />
+  <meta name="description" content="TileShift — a fresh take on the slide-and-merge puzzle. Classic, Time Attack, Moves and Daily modes. Play online." />
   <title>TileShift</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" href="icons/icon-192.png" />
@@ -17,6 +17,11 @@
       <div class="brand">
         <h1>TileShift</h1>
         <p class="tagline">slide &amp; merge puzzle</p>
+      </div>
+      <div id="user-section" class="user-section" hidden>
+        <button id="user-chip" class="user-chip" type="button" aria-label="Open player profile">
+          <span id="user-chip-name" class="user-chip-name">Player</span>
+        </button>
       </div>
     </header>
 
@@ -46,19 +51,55 @@
       <p class="lb-status" id="lb-status"></p>
     </section>
 
-    <div id="pg-signin" class="pg-signin" hidden>
-      <button id="pg-signin-btn" class="pg-signin-btn" type="button">
-        <svg class="pg-signin-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="#1976D2" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
-          <path fill="#FFC107" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
-          <path fill="#4CAF50" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
-          <path fill="#4CAF50" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 .01 10.99 10.99 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
-        </svg>
-        <span>Sign in to save your name</span>
-      </button>
-    </div>
-
     <div id="banner" class="banner-slot"></div>
+  </div>
+
+  <div id="login-screen" class="overlay-screen hidden" role="dialog" aria-label="Player login">
+    <div class="overlay-card">
+      <h2>Welcome back!</h2>
+      <p class="overlay-desc">Sign in to claim your name and appear on the leaderboard.</p>
+      <div id="login-pg-wrap" hidden>
+        <button id="login-pg-btn" class="pg-signin-btn full" type="button">
+          <svg class="pg-signin-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#1976D2" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
+            <path fill="#FFC107" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+            <path fill="#4CAF50" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+            <path fill="#4CAF50" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 .01 10.99 10.99 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
+          </svg>
+          <span>Sign in with Google</span>
+        </button>
+      </div>
+      <div id="login-name-wrap" class="login-name-row">
+        <input id="login-name-input" type="text" maxlength="20" placeholder="Or type a name" autocomplete="off" />
+        <button id="login-name-btn" class="btn" type="button">Continue</button>
+      </div>
+      <p id="login-name-msg" class="overlay-msg"></p>
+      <button id="login-skip" class="btn ghost" type="button">Skip for now</button>
+    </div>
+  </div>
+
+  <div id="profile-modal" class="modal hidden" role="dialog" aria-label="Player profile">
+    <div class="modal-card">
+      <h2>Player Profile</h2>
+      <p class="score-note" id="profile-current">Signed in as Player</p>
+      <input id="profile-name-input" type="text" maxlength="20" placeholder="New name" autocomplete="off" />
+      <p id="profile-msg" class="overlay-msg"></p>
+      <div class="settings-list">
+        <label class="toggle-row">
+          <span>Sound</span>
+          <input id="toggle-sound" type="checkbox" />
+        </label>
+        <label class="toggle-row">
+          <span>Vibration</span>
+          <input id="toggle-vibration" type="checkbox" />
+        </label>
+      </div>
+      <div class="actions">
+        <button id="profile-save">Save</button>
+        <button id="profile-close">Close</button>
+      </div>
+      <button id="profile-signout" class="btn ghost small" hidden>Sign out</button>
+    </div>
   </div>
 
   <script type="module" src="js/landing.js"></script>
