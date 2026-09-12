@@ -42,6 +42,17 @@ service cloud.firestore {
         && request.resource.data.at is timestamp;
       allow update, delete: if false;
     }
+
+    // Player display names. The app enforces global uniqueness on the client
+    // (GET the doc first, reject if owned by another player), so the rules
+    // only need to firewall unauthenticated writes.
+    match /users/{name} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.player is string
+        && request.resource.data.name is string;
+      allow delete: if false;
+    }
   }
 }
 ```
@@ -57,3 +68,10 @@ but expires after 30 days.
   collection. If offline, the entry is queued in localStorage and flushed on the
   next successful connection (or on the landing page load).
 - The landing page leaderboard queries the top 10 scores per mode.
+
+## 5. Player names
+
+- The app claims a display name by writing to the `users` collection (doc id =
+  the lowercased name). If the Firestore `users` rule above isn't published, the
+  name is still saved locally, but cross-device uniqueness only works after the
+  rule is live.
