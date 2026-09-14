@@ -74,7 +74,7 @@ test('failed submits are queued and flushed by the next successful attempt', asy
   assert.equal(lb.queueLength(), 0, 'queue empty after flush');
 });
 
-test('fetchTopScores parses runQuery results in order', async () => {
+test('fetchTopScores parses runQuery results, keeping one best score per player', async () => {
   global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
   fetchImpl = async (url) => {
     if (String(url).includes('identitytoolkit')) {
@@ -85,20 +85,24 @@ test('fetchTopScores parses runQuery results in order', async () => {
       status: 200,
       json: async () => [
         { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'abc123' }, score: { integerValue: '900' }, tile: { integerValue: '128' }, at: { timestampValue: '2026-08-17T00:00:00Z' } } } },
+        { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'abc123' }, score: { integerValue: '1200' }, tile: { integerValue: '256' }, at: { timestampValue: '2026-08-18T00:00:00Z' } } } },
         { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'def456' }, score: { integerValue: '500' }, tile: { integerValue: '64' }, at: { timestampValue: '2026-08-16T00:00:00Z' } } } },
+        { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'def456' }, score: { integerValue: '300' }, tile: { integerValue: '32' }, at: { timestampValue: '2026-08-15T00:00:00Z' } } } },
       ],
     };
   };
   const rows = await lb.fetchTopScores('classic', 10);
-  assert.equal(rows.length, 2);
-  assert.equal(rows[0].score, 900);
+  assert.equal(rows.length, 2, 'one entry per player');
+  assert.equal(rows[0].score, 1200, 'highest score per player wins');
+  assert.equal(rows[0].player, 'abc123');
   assert.equal(rows[1].player, 'def456');
+  assert.equal(rows[1].score, 500, 'only the higher def456 score is kept');
   assert.equal(rows[1].tile, 64);
   const query = fetchLog[fetchLog.length - 1];
   assert.ok(String(query[0]).includes('runQuery'));
   const body = JSON.parse(query[1].body);
   assert.equal(body.structuredQuery.where.fieldFilter.value.stringValue, 'classic');
-  assert.equal(body.structuredQuery.limit, 100);
+  assert.equal(body.structuredQuery.limit, 500);
   assert.equal(body.structuredQuery.orderBy, undefined, 'sorting happens client-side (no composite index needed)');
 });
 

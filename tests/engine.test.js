@@ -139,6 +139,20 @@ test('Game: continueAfterWin lets play resume', () => {
   assert.equal(g.continued, true);
 });
 
+test('Game: win does not re-trigger after continue', () => {
+  const g = new Game({ seed: 5 });
+  g.board = { rows: 2, cols: 2, cells: [1024, 1024, 0, 0] };
+  g.attemptMove(DIRECTIONS.LEFT);
+  assert.equal(g.won, true);
+  g.continueAfterWin();
+  assert.equal(g.won, false);
+  assert.equal(g.continued, true);
+  // after a move, won must stay false because the player already continued
+  g.board = { rows: 2, cols: 2, cells: [2048, 2, 0, 0] };
+  g.attemptMove(DIRECTIONS.RIGHT);
+  assert.equal(g.won, false, 'won must not re-trigger after continue');
+});
+
 test('Game: serialize/deserialize round-trip', () => {
   const g = new Game({ seed: 11 });
   g.reset();

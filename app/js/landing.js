@@ -92,7 +92,8 @@ async function handlePlayGamesSignIn() {
       render();
     }
   } else {
-    showError(loginNameMsgEl, 'Sign-in cancelled. You can type a name instead.');
+    const detail = (res && res.error) ? ` (${res.error})` : '';
+    showError(loginNameMsgEl, `Sign-in failed${detail}. You can type a name instead.`);
   }
 }
 
@@ -169,6 +170,22 @@ function bindProfileUI() {
       render();
     });
   }
+  const soundToggle = document.getElementById('toggle-sound');
+  const vibrationToggle = document.getElementById('toggle-vibration');
+  if (soundToggle) {
+    soundToggle.checked = settings.sound;
+    soundToggle.addEventListener('change', () => {
+      settings.sound = soundToggle.checked;
+      saveSettings(settings);
+    });
+  }
+  if (vibrationToggle) {
+    vibrationToggle.checked = settings.vibration;
+    vibrationToggle.addEventListener('change', () => {
+      settings.vibration = vibrationToggle.checked;
+      saveSettings(settings);
+    });
+  }
 }
 
 // ---- Leaderboard ----
@@ -222,7 +239,7 @@ async function render() {
     renderRows(rows);
   } catch (e) {
     renderNote('Could not reach the leaderboard. Check your connection.');
-    statusEl.textContent = '';
+    statusEl.textContent = String((e && e.message) || e || '');
   }
 }
 
@@ -240,8 +257,6 @@ function buildTabs() {
   }
   tabsEl.firstChild.classList.add('active');
 }
-
-const playGamesState = { available: false, authenticated: false };
 
 async function initPlayGames() {
   try {
@@ -262,6 +277,12 @@ showBanner();
 (async () => {
   await initPlayGames();
   refreshUserChip();
-  // Existing users without a saved identity get a dedicated login screen once.
-  if (!hasProfile() && !playGamesState.authenticated) openLogin();
+  // New users: try Play Games sign-in automatically (shows consent once).
+  // Only fall back to the manual login screen if that fails or is unavailable.
+  if (!hasProfile()) {
+    if (playGamesState.available && !playGamesState.authenticated) {
+      await handlePlayGamesSignIn();
+    }
+    if (!hasProfile()) openLogin();
+  }
 })();

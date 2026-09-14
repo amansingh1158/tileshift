@@ -1,29 +1,24 @@
 package com.tileshift.game
 
-import android.content.Intent
-import androidx.activity.result.ActivityResult
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
-import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
-import com.google.android.gms.common.Scopes
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.Scope
+import com.google.android.gms.games.AuthenticationResult
+import com.google.android.gms.games.GamesClientStatusCodes
+import com.google.android.gms.games.PlayGames
 import com.google.android.gms.tasks.Task
 
 /**
  * Play Games Services bridge — fully guarded.
  *
- * Play Games is only used when the app ships a games-ids.xml with a real
- * app_id (added from Play Console). Without it, isAvailable() returns false
- * and nothing is attempted, keeping the app fully functional.
+ * Uses Play Games Services v2 (play-services-games-v2). The SDK is
+ * initialized in Application.onCreate (TileShiftApp), which v2 requires
+ * before any client is created.
+ *
+ * When Play Games is not configured (no games-ids.xml), every function here
+ * resolves to a safe default and the game behaves exactly as before.
  */
 @CapacitorPlugin(name = "PlayGames")
 class PlayGamesPlugin : Plugin() {
@@ -39,70 +34,92 @@ class PlayGamesPlugin : Plugin() {
         }
     }
 
-    private fun signInClient(): GoogleSignInClient {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
-            .requestScopes(Scope(Scopes.GAMES), Scope(Scopes.GAMES_LITE), Scope(Scopes.DRIVE_APPFOLDER))
-            .build()
-        return GoogleSignIn.getClient(context, gso)
+    private fun statusLabel(code: Int): String {
+        return try {
+            GamesClientStatusCodes.getStatusCodeString(code)
+        } catch (e: Exception) {
+            "unknown ($code)"
+        }
     }
 
-    private fun isAuthenticated(): Boolean {
-        return try {
-            GoogleSignIn.getLastSignedInAccount(context) != null
-        } catch (e: Exception) {
-            false
+    private fun codeOf(e: Exception): Int {
+        var cur: Throwable? = e
+        while (cur != null && cur !is com.google.android.gms.common.api.ApiException) {
+            cur = cur.cause
         }
+        return if (cur is com.google.android.gms.common.api.ApiException) cur.statusCode else -1
     }
 
     @PluginMethod
     fun isAvailable(call: PluginCall) {
         val ret = JSObject()
         ret.put("available", gamesConfigured())
-        ret.put("authenticated", isAuthenticated())
-        call.resolve(ret)
+        ret.put("authenticated", false)
+        if (!gamesConfigured() || activity == null) {
+            call.resolve(ret)
+            return
+        }
+        try {
+            PlayGames.getGamesSignInClient(activity).isAuthenticated()
+                .addOnSuccessListener { result: AuthenticationResult ->
+                    ret.put("authenticated", result.isAuthenticated())
+                    call.resolve(ret)
+                }
+                .addOnFailureListener { e ->
+                    ret.put("authenticated", false)
+                    ret.put("error", e.message ?: "unknown")
+                    call.resolve(ret)
+                }
+        } catch (e: Exception) {
+            ret.put("authenticated", false)
+            ret.put("error", "init: " + (e.message ?: "unknown"))
+            call.resolve(ret)
+        }
     }
 
     @PluginMethod
     fun signIn(call: PluginCall) {
         if (!gamesConfigured()) {
-            call.reject("Play Games is not configured")
+            call.reject("Play Games is not configured for this build (games-ids.xml missing)")
             return
         }
-        val intent: Intent = signInClient().signInIntent
-        startActivityForResult(call, intent, "onSignInResult")
+        val act = activity
+        if (act == null) {
+            call.reject("Activity not available")
+            return
+        }
+        try {
+            val task: Task<AuthenticationResult> = PlayGames.getGamesSignInClient(act).signIn()
+            task.addOnSuccessListener { result ->
+                if (!result.isAuthenticated()) {
+                    call.reject("Sign-in could not complete. Check Play Games app is enabled on the device and the game is linked in Play Console.")
+                    return@addOnSuccessListener
+                }
+                PlayGames.getPlayersClient(act).currentPlayer
+                    .addOnSuccessListener { player ->
+                        val ret = JSObject()
+                        ret.put("signedIn", true)
+                        ret.put("id", player.playerId ?: "")
+                        ret.put("displayName", player.displayName ?: "")
+                        call.resolve(ret)
+                    }
+                    .addOnFailureListener { e ->
+                        call.reject("Failed to load player: " + (e.message ?: "unknown error"))
+                    }
+            }
+            task.addOnFailureListener { e ->
+                val code = codeOf(e)
+                call.reject("Play Games sign-in failed: " + statusLabel(code) + " (" + (e.message ?: "unknown error") + ")")
+            }
+        } catch (e: Exception) {
+            call.reject("Play Games sign-in error: " + (e.message ?: "unknown error"))
+        }
     }
 
     @PluginMethod
     fun signOut(call: PluginCall) {
-        try {
-            signInClient().signOut()
-            call.resolve()
-        } catch (e: Exception) {
-            call.reject("Sign out failed", e)
-        }
-    }
-
-    @ActivityCallback
-    private fun onSignInResult(call: PluginCall, result: ActivityResult) {
-        if (result.data == null) {
-            call.reject("Sign-in cancelled: " + GoogleSignInStatusCodes.getStatusCodeString(GoogleSignInStatusCodes.SIGN_IN_CANCELLED))
-            return
-        }
-        val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            val ret = JSObject()
-            ret.put("signedIn", true)
-            ret.put("idToken", account.idToken ?: "")
-            ret.put("serverAuthCode", account.serverAuthCode ?: "")
-            ret.put("displayName", account.displayName ?: "")
-            ret.put("givenName", account.givenName ?: "")
-            ret.put("familyName", account.familyName ?: "")
-            ret.put("email", account.email ?: "")
-            ret.put("id", account.id ?: "")
-            call.resolve(ret)
-        } catch (e: ApiException) {
-            call.reject("Sign-in failed: " + GoogleSignInStatusCodes.getStatusCodeString(e.statusCode))
-        }
+        // The v2 SDK has no signOut() on GamesSignInClient; the local JS name
+        // is cleared in web land. Nothing meaningful to do natively.
+        call.resolve()
     }
 }

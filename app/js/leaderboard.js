@@ -166,24 +166,29 @@ export async function fetchTopScores(mode, limit = 10) {
             value: { stringValue: mode },
           },
         },
-        limit: 100,
+        limit: 500,
       },
     }),
   });
   if (!res.ok) throw new Error(`query failed (${res.status})`);
   const data = await res.json();
-  const rows = [];
+  const best = new Map();
   for (const item of Array.isArray(data) ? data : []) {
     if (!item.document) continue;
     const f = item.document.fields || {};
-    rows.push({
-      player: f.player?.stringValue || 'unknown',
+    const player = f.player?.stringValue || 'unknown';
+    const score = Number(f.score?.integerValue || 0);
+    const prev = best.get(player);
+    if (prev && prev.score >= score) continue;
+    best.set(player, {
+      player,
       name: f.name?.stringValue || '',
-      score: Number(f.score?.integerValue || 0),
+      score,
       tile: Number(f.tile?.integerValue || 0),
       at: f.at?.timestampValue || '',
     });
   }
+  const rows = [...best.values()];
   rows.sort((a, b) => b.score - a.score);
   return rows.slice(0, limit);
 }

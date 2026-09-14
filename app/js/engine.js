@@ -277,7 +277,7 @@ export class Game {
     }
     if (this.score > this.best) this.best = this.score;
 
-    if (!this.won && hasReached(this.board, this.target)) {
+    if (!this.won && !this.continued && hasReached(this.board, this.target)) {
       this.won = true;
     }
 

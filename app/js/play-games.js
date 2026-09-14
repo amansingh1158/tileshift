@@ -54,10 +54,11 @@ export async function playGamesAuthenticated() {
 
 export async function playGamesSignIn() {
   try {
-    if (!isNative()) return null;
+    if (!isNative()) return { signedIn: false, error: 'Play Games is unavailable on the web.' };
     return await PlayGames.signIn();
   } catch (e) {
-    return null;
+    const msg = String((e && (e.message || e)) || '');
+    return { signedIn: false, error: msg };
   }
 }
 
