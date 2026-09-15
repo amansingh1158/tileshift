@@ -179,10 +179,16 @@ export async function fetchTopScores(mode, limit = 10) {
     const player = f.player?.stringValue || 'unknown';
     const score = Number(f.score?.integerValue || 0);
     const prev = best.get(player);
-    if (prev && prev.score >= score) continue;
+    const name = f.name?.stringValue || '';
+    if (prev && prev.score >= score) {
+      // Keep the best score, but backfill a missing name from a lower entry
+      // so opponents don't render as anonymous.
+      if (!prev.name && name) prev.name = name;
+      continue;
+    }
     best.set(player, {
       player,
-      name: f.name?.stringValue || '',
+      name,
       score,
       tile: Number(f.tile?.integerValue || 0),
       at: f.at?.timestampValue || '',

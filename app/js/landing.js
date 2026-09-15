@@ -191,7 +191,9 @@ function bindProfileUI() {
 // ---- Leaderboard ----
 function playerLabel(row) {
   if (row.player === getPlayerId()) return 'You';
-  return row.name || getDisplayName() || `Player #${row.player.slice(-4)}`;
+  // Never fall back to the viewer's own name for opponents — that made
+  // every unnamed player show up as the signed-in user.
+  return row.name || `Player #${String(row.player || '').slice(-4) || '????'}`;
 }
 
 function renderNote(text) {

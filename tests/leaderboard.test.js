@@ -106,6 +106,27 @@ test('fetchTopScores parses runQuery results, keeping one best score per player'
   assert.equal(body.structuredQuery.orderBy, undefined, 'sorting happens client-side (no composite index needed)');
 });
 
+test('fetchTopScores backfills a missing name from a lower entry', async () => {
+  global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
+  fetchImpl = async (url) => {
+    if (String(url).includes('identitytoolkit')) {
+      return { ok: true, status: 200, json: async () => ({ idToken: 't4', localId: 'u4', expiresIn: '3600' }) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => [
+        { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'abc123' }, name: { stringValue: '' }, score: { integerValue: '1200' }, tile: { integerValue: '256' }, at: { timestampValue: '2026-08-18T00:00:00Z' } } } },
+        { document: { fields: { mode: { stringValue: 'classic' }, player: { stringValue: 'abc123' }, name: { stringValue: 'Ravi' }, score: { integerValue: '900' }, tile: { integerValue: '128' }, at: { timestampValue: '2026-08-17T00:00:00Z' } } } },
+      ],
+    };
+  };
+  const rows = await lb.fetchTopScores('classic', 10);
+  assert.equal(rows.length, 1, 'one entry per player');
+  assert.equal(rows[0].score, 1200, 'best score kept');
+  assert.equal(rows[0].name, 'Ravi', 'name backfilled from lower entry');
+});
+
 test('top scores also work without any config (offline, empty list)', async () => {
   global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
   const rows = await lb.fetchTopScores('classic', 10);
