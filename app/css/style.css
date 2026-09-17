@@ -22,6 +22,8 @@ body {
 
 html {
   overflow-x: hidden;
+  overscroll-behavior: none;
+  height: 100%;
 }
 
 .hidden {
@@ -35,6 +37,9 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
   touch-action: manipulation;
   overflow-x: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  position: relative;
 }
 
 .app {
@@ -587,6 +592,7 @@ button:disabled {
   width: 100%;
   user-select: none;
   touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .board {
@@ -595,6 +601,8 @@ button:disabled {
   border-radius: 12px;
   overflow: hidden;
   transition: background 0.3s ease;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .cell-layer {

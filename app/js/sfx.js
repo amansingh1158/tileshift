@@ -1,79 +1,56 @@
-// Tiny synthesized sound effects using the Web Audio API.
-// No audio files required — everything is generated on the fly.
-// All calls are safe no-ops when AudioContext is unavailable (jsdom, old webviews).
+// Senior audio engine: single AudioContext + master gain, compressed ADSR, throttled moves.
+let ac = null, master = null, lastMove = 0;
+const VOL = { move: 0.22, spawn: 0.18, mergeA: 0.28, mergeB: 0.22, win: 0.30, winTail: 0.26, lose: 0.20 };
 
-let audioCtx = null;
-let lastMoveAt = 0;
-
-function ctx() {
+const getCtx = () => {
   if (typeof window === 'undefined') return null;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
-  if (!audioCtx) audioCtx = new AC();
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-  return audioCtx;
-}
-
-// Play a short tone. freqHz, duration, envelope shape, volume.
-function tone(freqStart, freqEnd, duration, type, volume, delay = 0) {
-  const ac = ctx();
-  if (!ac) return;
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  const t0 = ac.currentTime + delay;
-
-  osc.type = type || 'sine';
-  osc.frequency.setValueAtTime(freqStart, t0);
-  if (freqEnd && freqEnd !== freqStart) {
-    osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + duration);
+  if (!ac) {
+    ac = new AC();
+    master = ac.createGain();
+    master.gain.value = 1;
+    master.connect(ac.destination);
   }
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  return ac;
+};
 
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(volume, t0 + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
-
-  osc.connect(gain).connect(ac.destination);
+const tone = (f0, f1, dur, type, vol, delay = 0) => {
+  const a = getCtx();
+  if (!a) return;
+  const t0 = a.currentTime + delay, osc = a.createOscillator(), g = a.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(f0, t0);
+  if (f1 && f1 !== f0) osc.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g).connect(master);
   osc.start(t0);
-  osc.stop(t0 + duration + 0.05);
-}
+  osc.stop(t0 + dur + 0.05);
+};
 
-// Throttle so rapid multi-tile moves don't blast a full clip.
-function throttleMove(hz) {
+const throttled = (hz) => {
   const now = performance.now();
-  if (now - lastMoveAt < 55) return;
-  lastMoveAt = now;
-  tone(hz, hz * 0.7, 0.05, 'triangle', 0.05);
-}
+  if (now - lastMove < 55) return;
+  lastMove = now;
+  tone(hz, hz * 0.7, 0.05, 'triangle', VOL.move);
+};
 
-export function unlockAudio() {
-  ctx();
-}
-
-export function playMove() {
-  throttleMove(320);
-}
-
-export function playSpawn() {
-  if (!ctx()) return;
-  tone(520, 660, 0.06, 'sine', 0.04);
-}
-
-export function playMerge() {
-  if (!ctx()) return;
-  tone(392, 523, 0.09, 'triangle', 0.08);
-  tone(523, 659, 0.11, 'sine', 0.06, 0.05);
-}
-
-export function playWin() {
-  if (!ctx()) return;
-  tone(523, 523, 0.1, 'triangle', 0.09);
-  tone(659, 659, 0.1, 'triangle', 0.09, 0.1);
-  tone(784, 784, 0.12, 'triangle', 0.09, 0.2);
-  tone(1047, 1047, 0.2, 'sine', 0.08, 0.3);
-}
-
-export function playLose() {
-  if (!ctx()) return;
-  tone(300, 240, 0.14, 'sawtooth', 0.05);
-  tone(200, 150, 0.22, 'sawtooth', 0.05, 0.12);
-}
+export const unlockAudio = () => getCtx();
+export const playMove = () => throttled(320);
+export const playSpawn = () => { if (getCtx()) tone(520, 660, 0.06, 'sine', VOL.spawn); };
+export const playMerge = () => { if (!getCtx()) return; tone(392, 523, 0.09, 'triangle', VOL.mergeA); tone(523, 659, 0.11, 'sine', VOL.mergeB, 0.05); };
+export const playWin = () => {
+  if (!getCtx()) return;
+  tone(523, 523, 0.1, 'triangle', VOL.win);
+  tone(659, 659, 0.1, 'triangle', VOL.win, 0.1);
+  tone(784, 784, 0.12, 'triangle', VOL.win, 0.2);
+  tone(1047, 1047, 0.2, 'sine', VOL.winTail, 0.3);
+};
+export const playLose = () => {
+  if (!getCtx()) return;
+  tone(300, 240, 0.14, 'sawtooth', VOL.lose);
+  tone(200, 150, 0.22, 'sawtooth', VOL.lose, 0.12);
+};
