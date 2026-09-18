@@ -1,4 +1,4 @@
-const CACHE = 'tileshift-v21';
+const CACHE = 'tileshift-v22';
 const ASSETS = [
   './',
   './index.html',
