@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Delete your TileShift account</title>
+<style>
+  :root { color-scheme: light dark; --accent:#3f6df6; --danger:#d94848; --fg:#1c1c1e; --muted:#6e6e73; --bg:#ffffff; --card:#f2f2f7; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f7; --muted:#a1a1a6; --bg:#000; --card:#1c1c1e; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--fg); line-height:1.6; }
+  main { max-width:640px; margin:0 auto; padding:40px 20px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 8px; }
+  h2 { font-size:1.1rem; margin:28px 0 8px; }
+  .lead { color:var(--muted); margin:0 0 8px; }
+  .card { background:var(--card); border-radius:14px; padding:18px 20px; margin:16px 0; }
+  .card p { margin:0 0 10px; }
+  ul { margin:0; padding-left:20px; }
+  li { margin:6px 0; }
+  .btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:12px 20px; border-radius:12px; font-weight:600; margin:4px 4px 4px 0; }
+  .btn.danger { background:var(--danger); }
+  code { background:var(--card); padding:2px 6px; border-radius:6px; font-size:.92em; }
+  .muted { color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Delete your TileShift account</h1>
+  <p class="lead">TileShift lets you delete all data we store about you — your display name, game scores and player ID — at any time.</p>
+
+  <div class="card">
+    <h2>What we store</h2>
+    <ul>
+      <li><strong>Display name</strong> — the name you type before appearing on the leaderboard.</li>
+      <li><strong>Game scores</strong> — score, mode, best tile and timestamp for each finished game.</li>
+      <li><strong>Anonymous player ID</strong> — a random identifier used to credit scores to you. We do <strong>not</strong> store your email, phone number, contacts or photos.</li>
+    </ul>
+    <p class="muted">Data is stored in Firebase (Google) and transmitted over HTTPS. AdMob and Google Play Games may collect data under their own policies.</p>
+  </div>
+
+  <div class="card">
+    <h2>How to delete (recommended)</h2>
+    <p>In the app, open <strong>Settings → Delete my account and data</strong> and confirm. This instantly removes your scores and name from the leaderboard and clears your player ID from the device.</p>
+    <p class="muted">If you signed in with Google Play Games, your Play Games profile is managed by Google — delete it in <a href="https://play.google.com/settings/playgames" rel="noopener" target="_blank">Play Games settings</a> or your Google account privacy controls.</p>
+  </div>
+
+  <div class="card">
+    <h2>Request deletion another way</h2>
+    <p>If you can't access the app, email us from the email address you normally use, telling us your TileShift display name (if any) and roughly when you played. We process requests within 30 days.</p>
+    <a class="btn danger" href="mailto:support@tileshift.app?subject=TileShift%20account%20deletion%20request&body=Display%20name%20(if%20any)%3A%20%0APlayer%20ID%20(if%20shown)%3A%20%0AApproximate%20last%20played%3A%20">Email a deletion request</a>
+  </div>
+
+  <p class="muted">Last updated: <span id="date"></span></p>
+  <script>document.getElementById('date').textContent = new Date().toISOString().slice(0, 10);</script>
+</main>
+</body>
+</html>
