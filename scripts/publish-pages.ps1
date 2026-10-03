@@ -1,5 +1,5 @@
-// Publishes the PWA in app/ to GitHub Pages via an orphan `gh-pages` branch.
-// URL: https://<owner>.github.io/<repo>/  (e.g. https://amansingh1158.github.io/tileshift/)
+# Publishes the PWA in app/ to GitHub Pages via an orphan `gh-pages` branch.
+# URL: https://<owner>.github.io/<repo>/  (e.g. https://amansingh1158.github.io/tileshift/)
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
