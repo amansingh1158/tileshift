@@ -198,3 +198,86 @@ export async function fetchTopScores(mode, limit = 10) {
   rows.sort((a, b) => b.score - a.score);
   return rows.slice(0, limit);
 }
+
+// --- Account & data deletion (Play data-safety) ---
+
+const ACCOUNT_DELETE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/accounts:delete';
+
+async function findPlayerDocs(token, root, uid) {
+  const found = [];
+  for (const collectionId of ['scores', 'users']) {
+    const res = await fetchWithTimeout(`${root}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'player' },
+              op: 'EQUAL',
+              value: { stringValue: uid },
+            },
+          },
+          limit: 500,
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`find ${collectionId} failed (${res.status})`);
+    const data = await res.json();
+    for (const item of Array.isArray(data) ? data : []) {
+      if (item.document?.name) found.push(item.document.name);
+    }
+  }
+  return found;
+}
+
+// Deletes every stored document for this player (scores + claimed name), then
+// best-effort removes the anonymous Firebase account. Firestore rules must
+// allow delete on docs where player == auth.uid (see firestore.rules).
+export async function deleteMyAccountData() {
+  const cfg = getFirebaseConfig();
+  const uid = getPlayerId();
+  if (!isConfigured() || !uid) return { deleted: 0, account: false };
+  const root = firestoreRoot(cfg.projectId);
+  let token;
+  try {
+    token = await getToken();
+  } catch (e) {
+    return { deleted: 0, account: false, error: 'auth' };
+  }
+  const docs = await findPlayerDocs(token, root, uid);
+  for (let i = 0; i < docs.length; i += 450) {
+    const chunk = docs.slice(i, i + 450);
+    const res = await fetchWithTimeout(`${root}:commit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ writes: chunk.map((name) => ({ delete: name })) }),
+    });
+    if (!res.ok) throw new Error(`delete commit failed (${res.status})`);
+  }
+  let account = false;
+  try {
+    const res = await fetchWithTimeout(`${ACCOUNT_DELETE_ENDPOINT}?key=${cfg.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token }),
+    });
+    account = res.ok;
+  } catch (e) {
+    // best-effort; the stored documents are already gone
+  }
+  return { deleted: docs.length, account };
+}
+
+// Drops the locally cached anonymous identity (token, player id, score queue)
+// so the device no longer holds or can reuse the account.
+export function clearLocalIdentity() {
+  for (const key of [TOKEN_KEY, PLAYER_KEY, QUEUE_KEY]) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+}

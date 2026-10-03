@@ -40,7 +40,10 @@ service cloud.firestore {
         && request.resource.data.player is string
         && request.resource.data.tile is int
         && request.resource.data.at is timestamp;
-      allow update, delete: if false;
+      allow update: if false;
+      // A player can delete their own entries (used by "Delete my data").
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.player;
     }
 
     // Player display names. The app enforces global uniqueness on the client
@@ -51,11 +54,16 @@ service cloud.firestore {
       allow create, update: if request.auth != null
         && request.resource.data.player is string
         && request.resource.data.name is string;
-      allow delete: if false;
+      // A player can release their own name (used by "Delete my data").
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.player;
     }
   }
 }
 ```
+
+The same rules are saved at the repo root in `firestore.rules` (deployable with
+`npx firebase-tools deploy --only firestore:rules`).
 
 Publish the rules (select "production" mode). The default "test mode" also works
 but expires after 30 days.
@@ -69,9 +77,15 @@ but expires after 30 days.
   next successful connection (or on the landing page load).
 - The landing page leaderboard queries the top 10 scores per mode.
 
-## 5. Player names
+## 5. Account & data deletion
 
-- The app claims a display name by writing to the `users` collection (doc id =
-  the lowercased name). If the Firestore `users` rule above isn't published, the
-  name is still saved locally, but cross-device uniqueness only works after the
-  rule is live.
+- Settings → **Delete my account and data** queries the `scores` and `users`
+  collections for the current anonymous player ID, batch-deletes every matching
+  document (`:commit`), best-effort removes the Firebase account
+  (`accounts:delete`), then clears the local token/queue (and signs out of Play
+  Games).
+- The `delete: if request.auth.uid == resource.data.player` rules above are
+  required for deletion to work — without them deletes are rejected (403).
+- A static request page is served at `<host>/delete-account.html` (see
+  `app/delete-account.html`) for users who can't use the in-app flow; it also
+  notes Play Games data is managed by Google.

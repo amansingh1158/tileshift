@@ -1,8 +1,9 @@
-const CACHE = 'tileshift-v22';
+const CACHE = 'tileshift-v23';
 const ASSETS = [
   './',
   './index.html',
   './play.html',
+  './delete-account.html',
   './css/style.css',
   './js/engine.js',
   './js/storage.js',

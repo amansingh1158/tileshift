@@ -11,7 +11,8 @@
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "android:apk": "cd android && gradlew.bat assembleDebug",
-    "android:aab": "cd android && gradlew.bat bundleRelease"
+    "android:aab": "cd android && gradlew.bat bundleRelease",
+    "pages": "powershell -ExecutionPolicy Bypass -File scripts/publish-pages.ps1"
   },
   "keywords": [
     "2048",

@@ -2,7 +2,7 @@ import { Capacitor } from '../vendor/@capacitor/core/index.js';
 import { Haptics, ImpactStyle, NotificationType } from '../vendor/@capacitor/haptics/index.js';
 import { COMBO_BONUS, DIRECTIONS, MODES, Game, highestTile } from './engine.js';
 import { isConfigured as lbConfigured } from './firebase-config.js';
-import { submitScore } from './leaderboard.js';
+import { submitScore, deleteMyAccountData, clearLocalIdentity, getPlayerId } from './leaderboard.js';
 import { getDisplayName, validateName, claimName, setDisplayNameLocal, hasProfile } from './profile.js';
 import { playGamesSignOut } from './play-games.js';
 import { playMerge, playMove, playWin, playLose, unlockAudio } from './sfx.js';
@@ -216,9 +216,9 @@ const themeSel = fillSelect('#theme', Object.entries(THEMES).map(([k, v]) => ({ 
 themeSel.value = settings.theme;
 
 // --- Settings modal ---
-const sModal = $('#settings-modal'), sName = $('#settings-name-input'), sMsg = $('#settings-msg'), sSave = $('#settings-save'), sClose = $('#settings-close'), sOut = $('#settings-signout'), sBtn = $('#settings-btn'), sSound = $('#settings-sound'), sVib = $('#settings-vibration');
+const sModal = $('#settings-modal'), sName = $('#settings-name-input'), sMsg = $('#settings-msg'), sSave = $('#settings-save'), sClose = $('#settings-close'), sOut = $('#settings-signout'), sBtn = $('#settings-btn'), sSound = $('#settings-sound'), sVib = $('#settings-vibration'), sDel = $('#settings-delete');
 const syncToggles = () => { if (sSound) { sSound.textContent = settings.sound ? 'ON' : 'OFF'; sSound.classList.toggle('on', settings.sound); } if (sVib) { sVib.textContent = settings.vibration ? 'ON' : 'OFF'; sVib.classList.toggle('on', settings.vibration); } };
-const openSettings = () => { sName.value = getDisplayName(); sMsg.textContent = ''; sOut.hidden = !hasProfile(); syncToggles(); sModal.classList.remove('hidden'); };
+const openSettings = () => { sName.value = getDisplayName(); sMsg.textContent = ''; sOut.hidden = !hasProfile(); sDel.hidden = !getPlayerId(); syncToggles(); sModal.classList.remove('hidden'); };
 const closeSettings = () => sModal.classList.add('hidden');
 const saveSM = async () => {
   sMsg.textContent = ''; const v = validateName(sName.value); if (!v.ok) return sMsg.textContent = v.reason;
@@ -226,7 +226,19 @@ const saveSM = async () => {
   sMsg.textContent = r.local ? 'Saved on this device (offline name).' : `Name "${v.name}" is yours!`; setTimeout(closeSettings, 700);
 };
 const outSM = async () => { setDisplayNameLocal(''); try { await playGamesSignOut(); } catch {} closeSettings(); };
+const delSM = async () => {
+  if (!window.confirm('Delete your account and all leaderboard data? This cannot be undone.')) return;
+  sMsg.textContent = 'Deleting…'; sDel.disabled = true;
+  const res = await deleteMyAccountData().catch(() => ({ deleted: 0, account: false, error: 'network' }));
+  clearLocalIdentity(); setDisplayNameLocal('');
+  try { await playGamesSignOut(); } catch {}
+  sDel.disabled = false; sOut.hidden = true; sDel.hidden = true;
+  sMsg.textContent = res.deleted > 0
+    ? 'Your scores and name have been deleted from the leaderboard.'
+    : 'No online data was found — this device has been cleared.';
+};
 sBtn?.addEventListener('click', openSettings); sClose?.addEventListener('click', closeSettings); sSave?.addEventListener('click', saveSM); sOut?.addEventListener('click', outSM);
+sDel?.addEventListener('click', delSM);
 sSound?.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(settings); syncToggles(); });
 sVib?.addEventListener('click', () => { settings.vibration = !settings.vibration; saveSettings(settings); syncToggles(); });
 sModal?.addEventListener('click', (e) => e.target === sModal && closeSettings());

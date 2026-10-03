@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{doc} {
+      allow read: if true;
+      allow create: if request.resource.data.score is int
+        && request.resource.data.score >= 0
+        && request.resource.data.score < 100000000
+        && request.resource.data.mode in ['classic', 'time', 'moves', 'daily']
+        && request.resource.data.player is string
+        && request.resource.data.tile is int
+        && request.resource.data.at is timestamp;
+      allow update: if false;
+      // A player can delete their own entries (used by "Delete my data").
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.player;
+    }
+
+    // Player display names. The app enforces global uniqueness on the client
+    // (GET the doc first, reject if owned by another player), so the rules
+    // only need to firewall unauthenticated writes.
+    match /users/{name} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.player is string
+        && request.resource.data.name is string;
+      // A player can release their own name (used by "Delete my data").
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.player;
+    }
+  }
+}

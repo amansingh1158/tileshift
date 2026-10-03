@@ -822,6 +822,20 @@ button.ghost.small {
   padding: 6px 10px;
 }
 
+.btn.danger {
+  background: rgba(217, 72, 72, 0.16);
+  border: 1px solid rgba(217, 72, 72, 0.5);
+  color: #ff6b6b;
+}
+
+.settings-delete-link {
+  display: inline-block;
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
 .profile-btn-name {
   font-weight: 700;
 }
