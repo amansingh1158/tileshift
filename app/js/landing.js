@@ -1,5 +1,5 @@
 import { isConfigured } from './firebase-config.js';
-import { fetchTopScores, flushQueue, getPlayerId } from './leaderboard.js';
+import { fetchTopScores, flushQueue, getPlayerId, weekEndsAt } from './leaderboard.js';
 import { showBanner } from './ads.js';
 import { playGamesAvailable, playGamesAuthenticated, playGamesSignIn, playGamesSignOut, setPlayGamesName } from './play-games.js';
 import { claimName, getDisplayName, setDisplayNameLocal, hasProfile, validateName } from './profile.js';
@@ -144,6 +144,16 @@ async function initPlayGames() {
 }
 
 // --- Boot ---
+const weekNoteEl = $('lb-week');
+function renderWeekNote() {
+  if (!weekNoteEl) return;
+  const ms = weekEndsAt().getTime() - Date.now();
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor(ms / 3600000) % 24;
+  weekNoteEl.textContent = days > 0 ? `Resets in ${days}d ${hours}h` : `Resets in ${Math.max(1, hours)}h`;
+}
+renderWeekNote();
+setInterval(renderWeekNote, 60000);
 buildTabs(); bindProfileUI(); render();
 window.addEventListener('online', render);
 window.addEventListener('focus', silentRefresh);

@@ -353,6 +353,15 @@ select:disabled {
   margin: 8px 0 0;
 }
 
+.lb-week {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 6px 0 10px;
+}
+
 .pg-signin {
   display: flex;
   flex-direction: column;

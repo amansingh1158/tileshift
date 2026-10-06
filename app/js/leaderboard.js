@@ -52,6 +52,31 @@ export function setPlayerId(uid) {
   localStorage.setItem(PLAYER_KEY, uid);
 }
 
+// --- Weekly rotation -------------------------------------------------------
+// Scores belong to an ISO-8601 week (UTC) and expire 7 days later, so the
+// leaderboard starts fresh every week and Firestore TTL can delete old rows.
+
+export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function weekKey(d = new Date()) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7; // Mon = 0 ... Sun = 6
+  date.setUTCDate(date.getUTCDate() - dayNum + 3); // Thursday of this week
+  const isoYear = date.getUTCFullYear();
+  const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+  const jan4DayNum = (jan4.getUTCDay() + 6) % 7;
+  jan4.setUTCDate(jan4.getUTCDate() - jan4DayNum + 3); // Thursday of ISO week 1
+  const week = 1 + Math.round((date.getTime() - jan4.getTime()) / WEEK_MS);
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
+}
+
+// Next Monday 00:00 UTC — when this week's leaderboard is replaced.
+export function weekEndsAt(d = new Date()) {
+  const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  return new Date(midnight + (7 - dayNum) * 24 * 60 * 60 * 1000);
+}
+
 export async function getToken() {
   const cfg = getFirebaseConfig();
   let cached = null;
@@ -80,19 +105,24 @@ export async function getToken() {
 }
 
 async function postScore(cfg, token, mode, entry) {
+  const fields = {
+    mode: { stringValue: mode },
+    player: { stringValue: entry.player },
+    name: { stringValue: entry.name || '' },
+    score: { integerValue: String(entry.score) },
+    tile: { integerValue: String(entry.tile) },
+    at: { timestampValue: entry.at },
+  };
+  // Weekly fields always land on the server: entries queued before the
+  // rotation existed are stamped from their original score time.
+  fields.week = { stringValue: entry.week || weekKey(new Date(entry.at)) };
+  fields.expiresAt = {
+    timestampValue: entry.expiresAt || new Date(Date.parse(entry.at) + WEEK_MS).toISOString(),
+  };
   const res = await fetchWithTimeout(`${firestoreRoot(cfg.projectId)}/scores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      fields: {
-        mode: { stringValue: mode },
-        player: { stringValue: entry.player },
-        name: { stringValue: entry.name || '' },
-        score: { integerValue: String(entry.score) },
-        tile: { integerValue: String(entry.tile) },
-        at: { timestampValue: entry.at },
-      },
-    }),
+    body: JSON.stringify({ fields }),
   });
   if (!res.ok) throw new Error(`score post failed (${res.status})`);
 }
@@ -105,12 +135,15 @@ function enqueue(mode, entry) {
 
 export async function submitScore(mode, { score, tile, name }) {
   const cfg = getFirebaseConfig();
+  const now = Date.now();
   const entry = () => ({
     player: getPlayerId() || 'guest',
     name: name || '',
     score,
     tile,
-    at: new Date().toISOString(),
+    at: new Date(now).toISOString(),
+    week: weekKey(new Date(now)),
+    expiresAt: new Date(now + WEEK_MS).toISOString(),
   });
   if (!isConfigured()) {
     enqueue(mode, entry());
@@ -159,11 +192,27 @@ export async function fetchTopScores(mode, limit = 10) {
     body: JSON.stringify({
       structuredQuery: {
         from: [{ collectionId: 'scores' }],
+        // Two equality filters — Firestore merges single-field indexes, so no
+        // composite index is required. Rows from older weeks never match.
         where: {
-          fieldFilter: {
-            field: { fieldPath: 'mode' },
-            op: 'EQUAL',
-            value: { stringValue: mode },
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'mode' },
+                  op: 'EQUAL',
+                  value: { stringValue: mode },
+                },
+              },
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'week' },
+                  op: 'EQUAL',
+                  value: { stringValue: weekKey() },
+                },
+              },
+            ],
           },
         },
         limit: 500,

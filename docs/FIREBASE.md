@@ -72,12 +72,32 @@ but expires after 30 days.
 
 - On first score submit the app signs in anonymously (Identity Toolkit REST) and
   caches the token in localStorage (refreshes hourly).
-- Finished games post `{ mode, player, score, tile, at }` to the `scores`
-  collection. If offline, the entry is queued in localStorage and flushed on the
-  next successful connection (or on the landing page load).
-- The landing page leaderboard queries the top 10 scores per mode.
+- Finished games post `{ mode, player, score, tile, at, week, expiresAt }` to the
+  `scores` collection. If offline, the entry is queued in localStorage and
+  flushed on the next successful connection (or on the landing page load).
+- The landing page leaderboard queries the top 10 scores per mode **and the
+  current ISO week** (`mode == X AND week == <weekKey>` — two equality filters,
+  merged from single-field indexes, so no composite index is needed).
 
-## 5. Account & data deletion
+## 5. Weekly rotation & 7-day score expiry
+
+- Every score is stamped with two extra fields:
+  - `week` — ISO-8601 week key, e.g. `2026-W40` (UTC, year-safe: Dec 29–Jan 4
+    can belong to `2026-W01`). All four leaderboard tabs reset together every
+    Monday 00:00 UTC; old weeks are simply never queried again.
+  - `expiresAt` — timestamp 7 days after the score (`week` + `expiresAt` are
+    written by `submitScore`; queued legacy entries get them stamped from their
+    original `at` when flushed).
+- **Console step (required for automatic deletion):** Firestore → *TTL* →
+  *Add policy* → field path `expiresAt` → Save. Backfill/propagation can lag
+  24–48 h. Documents without an `expiresAt` field are never deleted by TTL.
+- **One-time cleanup:** delete the legacy `scores` documents (created before
+  this release) manually in the console — they lack `week`/`expiresAt`, so they
+  are invisible to the new query *and* would never auto-expire.
+- Security rules need no change: the extra fields pass the existing `isScore`
+  validation.
+
+## 6. Account & data deletion
 
 - Settings → **Delete my account and data** queries the `scores` and `users`
   collections for the current anonymous player ID, batch-deletes every matching

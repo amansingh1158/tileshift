@@ -101,7 +101,13 @@ test('fetchTopScores parses runQuery results, keeping one best score per player'
   const query = fetchLog[fetchLog.length - 1];
   assert.ok(String(query[0]).includes('runQuery'));
   const body = JSON.parse(query[1].body);
-  assert.equal(body.structuredQuery.where.fieldFilter.value.stringValue, 'classic');
+  const where = body.structuredQuery.where;
+  assert.equal(where.compositeFilter.op, 'AND', 'mode + week are AND-ed');
+  const filters = where.compositeFilter.filters;
+  assert.equal(filters[0].fieldFilter.field.fieldPath, 'mode');
+  assert.equal(filters[0].fieldFilter.value.stringValue, 'classic');
+  assert.equal(filters[1].fieldFilter.field.fieldPath, 'week', 'query is scoped to this week');
+  assert.equal(filters[1].fieldFilter.value.stringValue, lb.weekKey());
   assert.equal(body.structuredQuery.limit, 500);
   assert.equal(body.structuredQuery.orderBy, undefined, 'sorting happens client-side (no composite index needed)');
 });
@@ -131,4 +137,69 @@ test('top scores also work without any config (offline, empty list)', async () =
   global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
   const rows = await lb.fetchTopScores('classic', 10);
   assert.deepEqual(rows, []);
+});
+
+// --- Weekly rotation ---
+
+test('weekKey follows ISO weeks, including year boundaries', () => {
+  assert.equal(lb.weekKey(new Date('2026-01-01T12:00:00Z')), '2026-W01', 'Jan 1 (Thu) opens ISO week 1');
+  assert.equal(lb.weekKey(new Date('2025-12-29T12:00:00Z')), '2026-W01', 'Dec 29 already belongs to next year ISO week');
+  assert.equal(lb.weekKey(new Date('2025-12-28T12:00:00Z')), '2025-W52', 'Dec 28 stays in the old year');
+  assert.equal(lb.weekKey(new Date('2025-01-01T12:00:00Z')), '2025-W01', 'Jan 1 (Wed) belongs to ISO week 1 of its year');
+  assert.equal(lb.weekKey(new Date('2026-10-03T12:00:00Z')), '2026-W40', 'mid-year date');
+});
+
+test('weekKey stays stable across a whole week and changes the next week', () => {
+  const monday = new Date('2026-09-28T00:00:00Z'); // Monday
+  for (let i = 0; i < 7; i++) {
+    assert.equal(lb.weekKey(new Date(monday.getTime() + i * 86400000)), '2026-W40', `day ${i} same week`);
+  }
+  assert.equal(lb.weekKey(new Date(monday.getTime() + 7 * 86400000)), '2026-W41', 'next week differs');
+});
+
+test('weekEndsAt points at the next Monday 00:00 UTC', () => {
+  const sat = new Date('2026-10-03T12:00:00Z');
+  assert.equal(lb.weekEndsAt(sat).toISOString(), '2026-10-05T00:00:00.000Z', 'Saturday ends on the coming Monday');
+  const monday = new Date('2026-09-28T09:30:00Z');
+  assert.equal(lb.weekEndsAt(monday).toISOString(), '2026-10-05T00:00:00.000Z', 'a Monday rolls over to the following week');
+  assert.notEqual(lb.weekKey(lb.weekEndsAt(sat)), lb.weekKey(sat), 'cutoff flips the week key');
+});
+
+test('submitScore stamps week and expiresAt (7 days) onto the stored document', async () => {
+  global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
+  fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.includes('identitytoolkit')) {
+      return { ok: true, status: 200, json: async () => ({ idToken: 't5', localId: 'uid-5', expiresIn: '3600' }) };
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const before = Date.now();
+  await lb.submitScore('classic', { score: 1234, tile: 64 });
+  const post = fetchLog.filter(([u]) => String(u).includes('documents/scores'))[0];
+  const body = JSON.parse(post[1].body);
+  assert.equal(body.fields.week.stringValue, lb.weekKey(), 'stamped with the current week');
+  const exp = Date.parse(body.fields.expiresAt.timestampValue);
+  assert.ok(exp >= before + lb.WEEK_MS && exp <= Date.now() + lb.WEEK_MS + 5000, 'expires 7 days after submission');
+  assert.ok(Date.parse(body.fields.at.timestampValue) <= exp, 'score time precedes expiry');
+});
+
+test('entries queued before the weekly change still get week and expiry on flush', async () => {
+  global.window = { TILESHIFT_FIREBASE: { apiKey: '', projectId: '' } };
+  const old = new Date(Date.now() - 2 * 86400000).toISOString();
+  store.set('tileshift:fb-queue', JSON.stringify([{ mode: 'classic', entry: { player: 'p1', name: 'Old', score: 10, tile: 4, at: old } }]));
+  global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
+  fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.includes('identitytoolkit')) {
+      return { ok: true, status: 200, json: async () => ({ idToken: 't6', localId: 'uid-6', expiresIn: '3600' }) };
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const flushed = await lb.flushQueue();
+  assert.equal(flushed, 1, 'legacy entry flushed');
+  const post = fetchLog.filter(([u]) => String(u).includes('documents/scores'))[0];
+  const body = JSON.parse(post[1].body);
+  assert.equal(body.fields.week.stringValue, lb.weekKey(new Date(old)), 'week derived from the original score time');
+  assert.equal(body.fields.expiresAt.timestampValue, new Date(Date.parse(old) + lb.WEEK_MS).toISOString(), 'expiry is 7 days after the score');
 });
