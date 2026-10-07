@@ -11,9 +11,12 @@ service cloud.firestore {
         && request.resource.data.tile is int
         && request.resource.data.at is timestamp;
       allow update: if false;
-      // A player can delete their own entries (used by "Delete my data").
-      allow delete: if request.auth != null
-        && request.auth.uid == resource.data.player;
+      // Own entries, or anything already past its 7-day expiry — clients use
+      // the second clause to self-purge expired scores (same effect as TTL,
+      // but free: current-week scores can never be touched by other players).
+      allow delete: if (request.auth != null
+        && request.auth.uid == resource.data.player)
+        || resource.data.expiresAt < request.time;
     }
 
     // Player display names. The app enforces global uniqueness on the client

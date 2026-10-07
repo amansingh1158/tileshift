@@ -203,3 +203,64 @@ test('entries queued before the weekly change still get week and expiry on flush
   assert.equal(body.fields.week.stringValue, lb.weekKey(new Date(old)), 'week derived from the original score time');
   assert.equal(body.fields.expiresAt.timestampValue, new Date(Date.parse(old) + lb.WEEK_MS).toISOString(), 'expiry is 7 days after the score');
 });
+
+// --- Client-side expiry purge (free stand-in for Firestore TTL) ---
+
+test('purgeExpiredScores deletes only docs with a past expiresAt', async () => {
+  global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
+  fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.includes('identitytoolkit')) {
+      return { ok: true, status: 200, json: async () => ({ idToken: 't7', localId: 'uid-7', expiresIn: '3600' }) };
+    }
+    if (u.includes('runQuery')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [
+          { document: { name: 'projects/PROJ/databases/(default)/documents/scores/old1' } },
+          { document: { name: 'projects/PROJ/databases/(default)/documents/scores/old2' } },
+        ],
+      };
+    }
+    if (u.includes(':commit')) return { ok: true, status: 200, json: async () => ({}) };
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const removed = await lb.purgeExpiredScores();
+  assert.equal(removed, 2, 'expired docs counted');
+  const query = fetchLog.find(([u]) => String(u).includes('runQuery'));
+  const qbody = JSON.parse(query[1].body);
+  assert.equal(qbody.structuredQuery.where.fieldFilter.field.fieldPath, 'expiresAt', 'filters on expiry only');
+  assert.equal(qbody.structuredQuery.where.fieldFilter.op, 'LESS_THAN');
+  const now = Date.parse(qbody.structuredQuery.where.fieldFilter.value.timestampValue);
+  assert.ok(Math.abs(Date.now() - now) < 10000, 'cutoff is now — future (live) scores never matched');
+  const commit = fetchLog.find(([u]) => String(u).includes(':commit'));
+  const cbody = JSON.parse(commit[1].body);
+  assert.deepEqual(
+    cbody.writes.map((w) => w.delete),
+    ['projects/PROJ/databases/(default)/documents/scores/old1', 'projects/PROJ/databases/(default)/documents/scores/old2']
+  );
+});
+
+test('purgeExpiredScores is a silent no-op when nothing is expired or on errors', async () => {
+  global.window = { TILESHIFT_FIREBASE: { apiKey: 'KEY', projectId: 'PROJ' } };
+  fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.includes('identitytoolkit')) {
+      return { ok: true, status: 200, json: async () => ({ idToken: 't8', localId: 'uid-8', expiresIn: '3600' }) };
+    }
+    if (u.includes('runQuery')) return { ok: true, status: 200, json: async () => [] };
+    return { ok: false, status: 500, json: async () => ({}) };
+  };
+  assert.equal(await lb.purgeExpiredScores(), 0, 'empty result');
+  assert.equal(fetchLog.filter(([u]) => String(u).includes(':commit')).length, 0, 'no commit for empty result');
+
+  fetchImpl = async (url) =>
+    String(url).includes('identitytoolkit')
+      ? { ok: true, status: 200, json: async () => ({ idToken: 't9', localId: 'uid-9', expiresIn: '3600' }) }
+      : { ok: false, status: 403, json: async () => ({}) };
+  assert.equal(await lb.purgeExpiredScores(), 0, 'failures swallowed');
+  const noConfig = { apiKey: '', projectId: '' };
+  global.window = { TILESHIFT_FIREBASE: noConfig };
+  assert.equal(await lb.purgeExpiredScores(), 0, 'unconfigured is a no-op');
+});

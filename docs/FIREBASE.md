@@ -41,9 +41,12 @@ service cloud.firestore {
         && request.resource.data.tile is int
         && request.resource.data.at is timestamp;
       allow update: if false;
-      // A player can delete their own entries (used by "Delete my data").
-      allow delete: if request.auth != null
-        && request.auth.uid == resource.data.player;
+      // Own entries, or anything already past its 7-day expiry — clients use
+      // the second clause to self-purge expired scores (same effect as TTL,
+      // but free: current-week scores can never be touched by other players).
+      allow delete: if (request.auth != null
+        && request.auth.uid == resource.data.player)
+        || resource.data.expiresAt < request.time;
     }
 
     // Player display names. The app enforces global uniqueness on the client
@@ -88,14 +91,19 @@ but expires after 30 days.
   - `expiresAt` — timestamp 7 days after the score (`week` + `expiresAt` are
     written by `submitScore`; queued legacy entries get them stamped from their
     original `at` when flushed).
-- **Console step (required for automatic deletion):** Firestore → *TTL* →
-  *Add policy* → field path `expiresAt` → Save. Backfill/propagation can lag
-  24–48 h. Documents without an `expiresAt` field are never deleted by TTL.
-- **One-time cleanup:** delete the legacy `scores` documents (created before
-  this release) manually in the console — they lack `week`/`expiresAt`, so they
-  are invisible to the new query *and* would never auto-expire.
-- Security rules need no change: the extra fields pass the existing `isScore`
-  validation.
+- **Expiry deletion is client-driven, not TTL.** A Firestore TTL policy
+  requires the project to be on the Blaze plan (billing enabled), which this
+  project deliberately is not — so instead the security rules permit deleting
+  any score whose `expiresAt` is already in the past, and every app boot runs
+  `purgeExpiredScores()` (query `expiresAt < now`, batch-delete up to 500,
+  fire-and-forget). Deleting *current* scores is still restricted to their
+  owner, and the `users` collection (names/stats) is never touched by the
+  purge. **This requires the `firestore.rules` above to be published in the
+  Firebase console** — without it the purge silently no-ops (403s are caught).
+- Legacy `scores` documents (pre-weekly-release, no `week`/`expiresAt`) were
+  purged once by deleting the collection in the console; they are invisible to
+  the weekly query and cannot expire. A seed doc without `expiresAt` is also
+  skipped by the purge (range filters ignore missing fields).
 
 ## 6. Account & data deletion
 

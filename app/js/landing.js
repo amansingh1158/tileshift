@@ -1,5 +1,5 @@
 import { isConfigured } from './firebase-config.js';
-import { fetchTopScores, flushQueue, getPlayerId, weekEndsAt } from './leaderboard.js';
+import { fetchTopScores, flushQueue, getPlayerId, weekEndsAt, purgeExpiredScores } from './leaderboard.js';
 import { showBanner } from './ads.js';
 import { playGamesAvailable, playGamesAuthenticated, playGamesSignIn, playGamesSignOut, setPlayGamesName } from './play-games.js';
 import { claimName, getDisplayName, setDisplayNameLocal, hasProfile, validateName } from './profile.js';
@@ -160,6 +160,7 @@ window.addEventListener('focus', silentRefresh);
 document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && silentRefresh());
 startPolling(); window.addEventListener('pagehide', stopPolling);
 showBanner();
+purgeExpiredScores();
 
 (async () => {
   await initPlayGames(); refreshUserChip();

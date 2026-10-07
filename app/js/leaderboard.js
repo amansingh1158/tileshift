@@ -248,6 +248,56 @@ export async function fetchTopScores(mode, limit = 10) {
   return rows.slice(0, limit);
 }
 
+// Removes scores whose 7-day expiry has passed — the free, client-side
+// stand-in for a Firestore TTL policy (rules only allow deleting docs whose
+// expiresAt is already in the past, see firestore.rules). Fire-and-forget:
+// failures are swallowed; some other client will clean up next session.
+export async function purgeExpiredScores() {
+  const cfg = getFirebaseConfig();
+  if (!isConfigured()) return 0;
+  let token;
+  try {
+    token = await getToken();
+  } catch (e) {
+    return 0;
+  }
+  const root = firestoreRoot(cfg.projectId);
+  try {
+    const res = await fetchWithTimeout(`${root}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'scores' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'expiresAt' },
+              op: 'LESS_THAN',
+              value: { timestampValue: new Date().toISOString() },
+            },
+          },
+          limit: 500,
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`purge query failed (${res.status})`);
+    const data = await res.json();
+    const names = (Array.isArray(data) ? data : [])
+      .map((item) => item.document?.name)
+      .filter(Boolean);
+    if (!names.length) return 0;
+    const del = await fetchWithTimeout(`${root}:commit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ writes: names.map((name) => ({ delete: name })) }),
+    });
+    // A 403 here just means a concurrent client deleted some docs first.
+    return del.ok ? names.length : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
 // --- Account & data deletion (Play data-safety) ---
 
 const ACCOUNT_DELETE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/accounts:delete';
